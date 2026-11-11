@@ -39,6 +39,7 @@ const countInPulses = ref(4)
 const loop = ref(false)
 const isRunning = ref(false)
 const isStarting = ref(false)
+const isInterrupted = ref(false)
 const isCompleted = ref(false)
 const errorMessage = ref('')
 const currentMeasure = ref<number | null>(null)
@@ -46,6 +47,15 @@ const currentGroup = ref<number | null>(null)
 const countInProgress = ref<{ pulseNumber: number; totalPulses: number } | null>(null)
 const offlineStatus = ref<OfflineStatus>('hidden')
 let transportRequest = 0
+let resumeOnForeground = false
+
+audioEngine.setContextStateHandler((state) => {
+  if (state === 'running') {
+    isInterrupted.value = false
+  } else if (isRunning.value || isStarting.value) {
+    isInterrupted.value = true
+  }
+})
 
 const measureCount = computed(() => score.value?.measures.length ?? 0)
 const canStart = computed(() => {
@@ -167,9 +177,27 @@ async function start() {
   const request = ++transportRequest
   isStarting.value = true
   errorMessage.value = ''
-  clearPlaybackStatus()
 
   try {
+    if (isInterrupted.value && isRunning.value) {
+      try {
+        await audioEngine.resume()
+        if (request === transportRequest) {
+          isInterrupted.value = false
+          isStarting.value = false
+        }
+        return
+      } catch {
+        if (request !== transportRequest) {
+          return
+        }
+        audioEngine.stop()
+        isRunning.value = false
+        isInterrupted.value = false
+      }
+    }
+
+    clearPlaybackStatus()
     if (mode.value === 'pulse') {
       await audioEngine.start(tempo.value)
     } else if (parsedScore) {
@@ -187,6 +215,7 @@ async function start() {
         () => {
           if (request === transportRequest) {
             isRunning.value = false
+            isInterrupted.value = false
             isCompleted.value = true
           }
         },
@@ -195,9 +224,12 @@ async function start() {
 
     if (request === transportRequest) {
       isRunning.value = true
+      isInterrupted.value = false
     }
   } catch (error: unknown) {
     if (request === transportRequest) {
+      isRunning.value = false
+      isInterrupted.value = false
       errorMessage.value =
         error instanceof Error ? error.message : 'Impossible de démarrer la lecture audio.'
     }
@@ -210,10 +242,44 @@ async function start() {
 
 function stop() {
   transportRequest += 1
+  resumeOnForeground = false
   audioEngine.stop()
   isRunning.value = false
   isStarting.value = false
+  isInterrupted.value = false
   clearPlaybackStatus()
+}
+
+async function handleVisibilityChange() {
+  if (document.visibilityState === 'hidden') {
+    resumeOnForeground = isRunning.value || isStarting.value
+    return
+  }
+
+  if (!resumeOnForeground) {
+    return
+  }
+  resumeOnForeground = false
+
+  const request = transportRequest
+  try {
+    await audioEngine.resume()
+    if (request === transportRequest) {
+      isInterrupted.value = false
+    }
+  } catch {
+    if (request !== transportRequest) {
+      return
+    }
+
+    audioEngine.stop()
+    isRunning.value = false
+    isStarting.value = false
+    isInterrupted.value = false
+    clearPlaybackStatus()
+    errorMessage.value =
+      'iOS a interrompu la lecture. Appuyez sur START pour la relancer.'
+  }
 }
 
 function initializeOfflineSupport() {
@@ -232,8 +298,15 @@ function initializeOfflineSupport() {
     })
 }
 
-onMounted(initializeOfflineSupport)
-onBeforeUnmount(() => audioEngine.stop())
+onMounted(() => {
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  initializeOfflineSupport()
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  audioEngine.setContextStateHandler(null)
+  audioEngine.stop()
+})
 </script>
 
 <template>
@@ -271,6 +344,7 @@ onBeforeUnmount(() => audioEngine.stop())
       :can-start="canStart"
       :is-running="isRunning"
       :is-starting="isStarting"
+      :is-interrupted="isInterrupted"
       @start="start"
       @stop="stop"
     />
@@ -279,7 +353,10 @@ onBeforeUnmount(() => audioEngine.stop())
       {{ errorMessage }}
     </p>
     <p class="playback-status" aria-live="polite">
-      <template v-if="mode === 'sequence' && countInProgress">
+      <template v-if="isInterrupted">
+        Audio suspendu — appuyez sur REPRENDRE
+      </template>
+      <template v-else-if="mode === 'sequence' && countInProgress">
         Décompte : pulse {{ countInProgress.pulseNumber }} / {{ countInProgress.totalPulses }}
       </template>
       <template v-else-if="mode === 'sequence' && currentMeasureInfo">

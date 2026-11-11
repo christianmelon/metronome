@@ -55,13 +55,33 @@ class FakeAudioContext {
   state = 'running'
   destination = {}
   oscillators = []
+  stateChangeListeners = new Set()
 
   constructor() {
     FakeAudioContext.latest = this
   }
 
+  addEventListener(type, listener) {
+    if (type === 'statechange') {
+      this.stateChangeListeners.add(listener)
+    }
+  }
+
+  removeEventListener(type, listener) {
+    if (type === 'statechange') {
+      this.stateChangeListeners.delete(listener)
+    }
+  }
+
+  setState(state) {
+    this.state = state
+    for (const listener of this.stateChangeListeners) {
+      listener()
+    }
+  }
+
   async resume() {
-    this.state = 'running'
+    this.setState('running')
   }
 
   createOscillator() {
@@ -170,6 +190,44 @@ describe('AudioEngine sequence playback', () => {
     engine.stop()
 
     assert.equal(scheduledClick.stopTime, context.currentTime)
+  })
+
+  it('resumes a suspended pulse without replaying missed clicks', async (t) => {
+    const engine = new AudioEngine()
+    const contextStates = []
+    engine.setContextStateHandler((state) => contextStates.push(state))
+
+    await engine.start(120)
+    t.after(() => engine.stop())
+    const context = FakeAudioContext.latest
+
+    context.currentTime = 1
+    context.setState('suspended')
+    const scheduledBeforeResume = context.oscillators.length
+
+    await engine.resume()
+
+    assert.equal(context.state, 'running')
+    assert.deepEqual(contextStates.slice(-2), ['suspended', 'running'])
+    assert.equal(context.oscillators.length, scheduledBeforeResume + 1)
+    assert.ok(
+      Math.abs(context.oscillators.at(-1).startTime - 1.005) < 1e-9,
+    )
+  })
+
+  it('creates a new audio context when a closed context is restarted', async (t) => {
+    const engine = new AudioEngine()
+
+    await engine.start(120)
+    const closedContext = FakeAudioContext.latest
+    closedContext.setState('closed')
+    engine.stop()
+
+    await engine.start(120)
+    t.after(() => engine.stop())
+
+    assert.notEqual(FakeAudioContext.latest, closedContext)
+    assert.equal(FakeAudioContext.latest.oscillators.length, 1)
   })
 
   it('reports the count-in and measure only when their audio time is reached', async (t) => {

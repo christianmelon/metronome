@@ -50,16 +50,30 @@ export class AudioEngine {
   private audioContext: AudioContext | null = null
   private schedulerTimer: ReturnType<typeof setInterval> | null = null
   private readonly scheduledClicks = new Set<ScheduledClick>()
+  private contextStateListener: (() => void) | null = null
+  private contextStateHandler: ((state: AudioContextState) => void) | null = null
   private tempo = 132
   private running = false
   private lifecycleToken = 0
   private startPromise: Promise<void> | null = null
   private playback: ActivePlayback | null = null
 
+  setContextStateHandler(
+    handler: ((state: AudioContextState) => void) | null,
+  ): void {
+    this.contextStateHandler = handler
+    if (this.audioContext) {
+      handler?.(this.audioContext.state)
+    }
+  }
+
   async start(tempo: number): Promise<void> {
     this.setTempo(tempo)
 
     if (this.running) {
+      if (this.audioContext?.state !== 'running') {
+        await this.resume()
+      }
       return
     }
 
@@ -112,11 +126,48 @@ export class AudioEngine {
       this.schedulerTimer = null
     }
 
-    const now = this.audioContext?.currentTime
-    if (now !== undefined) {
+    const context = this.audioContext
+    if (context && context.state !== 'closed') {
+      const now = context.currentTime
       for (const click of this.scheduledClicks) {
         click.oscillator.stop(now)
       }
+    } else {
+      this.scheduledClicks.clear()
+    }
+  }
+
+  async resume(): Promise<void> {
+    const context = this.audioContext
+    if (!this.running || !context || !this.playback) {
+      throw new Error('There is no active playback to resume.')
+    }
+    if (context.state === 'closed') {
+      throw new Error('The audio context is closed and must be restarted.')
+    }
+
+    const token = this.lifecycleToken
+    if (context.state !== 'running') {
+      await context.resume()
+    }
+
+    if (
+      token !== this.lifecycleToken ||
+      !this.running ||
+      context !== this.audioContext
+    ) {
+      return
+    }
+    if (context.state !== 'running') {
+      throw new Error('The browser did not allow audio playback to resume.')
+    }
+
+    this.schedule()
+    if (this.schedulerTimer === null) {
+      this.schedulerTimer = setInterval(
+        () => this.schedule(),
+        SCHEDULER_INTERVAL_MS,
+      )
     }
   }
 
@@ -172,7 +223,21 @@ export class AudioEngine {
       throw new Error('Web Audio API is not available in this browser.')
     }
 
-    this.audioContext ??= new window.AudioContext()
+    if (!this.audioContext || this.audioContext.state === 'closed') {
+      if (this.audioContext && this.contextStateListener) {
+        this.audioContext.removeEventListener(
+          'statechange',
+          this.contextStateListener,
+        )
+      }
+      this.audioContext = new window.AudioContext()
+      const context = this.audioContext
+      this.contextStateListener = () => {
+        this.contextStateHandler?.(context.state)
+      }
+      context.addEventListener('statechange', this.contextStateListener)
+      this.contextStateHandler?.(context.state)
+    }
 
     if (this.audioContext.state === 'closed') {
       throw new Error('The audio context is closed and cannot be restarted.')

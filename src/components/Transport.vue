@@ -3,6 +3,7 @@ defineProps<{
   canStart: boolean
   isRunning: boolean
   isStarting: boolean
+  isInterrupted: boolean
 }>()
 
 defineEmits<{
@@ -16,10 +17,10 @@ defineEmits<{
     <button
       class="transport-button start-button"
       type="button"
-      :disabled="!canStart || isRunning || isStarting"
+      :disabled="!canStart || (isRunning && !isInterrupted) || isStarting"
       @click="$emit('start')"
     >
-      {{ isStarting ? 'DÉMARRAGE…' : 'START' }}
+      {{ isStarting ? 'DÉMARRAGE…' : isInterrupted ? 'REPRENDRE' : 'START' }}
     </button>
     <button
       class="transport-button stop-button"
