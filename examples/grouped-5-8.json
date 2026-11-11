@@ -1,0 +1,14 @@
+{
+  "tempo": 120,
+  "tempoUnit": {
+    "denominator": 4,
+    "elementaryUnitsPerTempoBeat": 4
+  },
+  "sequence": [
+    {
+      "measures": "1-4",
+      "meter": "5/8",
+      "groups": [4, 6]
+    }
+  ]
+}

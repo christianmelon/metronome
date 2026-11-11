@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Métronome score",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tempo", "tempoUnit", "sequence"],
+  "properties": {
+    "tempo": {
+      "type": "number",
+      "minimum": 30,
+      "maximum": 300,
+      "description": "BPM measured using the note value described by tempoUnit.denominator."
+    },
+    "tempoUnit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["denominator", "elementaryUnitsPerTempoBeat"],
+      "properties": {
+        "denominator": {
+          "type": "integer",
+          "enum": [1, 2, 4, 8, 16, 32, 64],
+          "description": "Note-value denominator used by the BPM, for example 4 for a quarter note."
+        },
+        "elementaryUnitsPerTempoBeat": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 256,
+          "description": "Explicit number of elementary rhythmic units in one BPM beat."
+        }
+      }
+    },
+    "sequence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["measures", "meter"],
+        "properties": {
+          "measures": {
+            "type": "string",
+            "maxLength": 13,
+            "pattern": "^[1-9][0-9]*(\\s*-\\s*[1-9][0-9]*)?$",
+            "description": "A single measure number or an inclusive range such as 1-4."
+          },
+          "meter": {
+            "type": "string",
+            "maxLength": 7,
+            "pattern": "^[1-9][0-9]{0,3}/(1|2|4|8|16|32|64)$",
+            "description": "Meter numerator and power-of-two denominator, such as 15/16."
+          },
+          "groups": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 65536,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65536
+            },
+            "description": "Optional positive counts of elementary units; must sum to the measure length."
+          }
+        }
+      }
+    }
+  }
+}

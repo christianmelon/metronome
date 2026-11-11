@@ -1,0 +1,21 @@
+{
+  "tempo": 132,
+  "tempoUnit": {
+    "denominator": 4,
+    "elementaryUnitsPerTempoBeat": 4
+  },
+  "sequence": [
+    {
+      "measures": "1",
+      "meter": "4/4"
+    },
+    {
+      "measures": "2",
+      "meter": "3/8"
+    },
+    {
+      "measures": "3",
+      "meter": "3/4"
+    }
+  ]
+}
