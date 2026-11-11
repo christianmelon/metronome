@@ -11,6 +11,10 @@ npm run build
 npm run preview
 ```
 
+## Environnement Node.js
+
+Le projet épingle Node.js **24.22.3** avec Volta, dans le champ `volta.node` de `package.json`. Lorsque Volta est installé et présent dans le `PATH`, il sélectionne automatiquement cette version à la racine du projet. Vérifier avec `node --version`, qui doit afficher `v24.22.3`. Sans Volta, utiliser Node.js 24.22.3 est recommandé; les outils et tests requièrent Node.js 22 ou supérieur.
+
 Le navigateur doit autoriser l’audio. Appuyer sur **START** active ou reprend l’`AudioContext`, conformément aux restrictions de Safari et iOS. Le mode **Pulse** est le mode d’ouverture; **Séquences** permet de choisir une partition dans la liste intégrée, sans sélectionner de fichier.
 
 ## Modes de lecture
