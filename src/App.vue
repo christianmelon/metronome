@@ -50,9 +50,7 @@ let transportRequest = 0
 let resumeOnForeground = false
 
 audioEngine.setContextStateHandler((state) => {
-  if (state === 'running') {
-    isInterrupted.value = false
-  } else if (isRunning.value || isStarting.value) {
+  if (state !== 'running' && (isRunning.value || isStarting.value)) {
     isInterrupted.value = true
   }
 })
@@ -250,36 +248,29 @@ function stop() {
   clearPlaybackStatus()
 }
 
-async function handleVisibilityChange() {
+function markBackgrounded() {
+  if (isRunning.value || isStarting.value) {
+    resumeOnForeground = true
+  }
+}
+
+function handleForeground() {
+  if (
+    document.visibilityState === 'visible' &&
+    resumeOnForeground &&
+    (isRunning.value || isStarting.value)
+  ) {
+    resumeOnForeground = false
+    isInterrupted.value = true
+  }
+}
+
+function handleVisibilityChange() {
   if (document.visibilityState === 'hidden') {
-    resumeOnForeground = isRunning.value || isStarting.value
+    markBackgrounded()
     return
   }
-
-  if (!resumeOnForeground) {
-    return
-  }
-  resumeOnForeground = false
-
-  const request = transportRequest
-  try {
-    await audioEngine.resume()
-    if (request === transportRequest) {
-      isInterrupted.value = false
-    }
-  } catch {
-    if (request !== transportRequest) {
-      return
-    }
-
-    audioEngine.stop()
-    isRunning.value = false
-    isStarting.value = false
-    isInterrupted.value = false
-    clearPlaybackStatus()
-    errorMessage.value =
-      'iOS a interrompu la lecture. Appuyez sur START pour la relancer.'
-  }
+  handleForeground()
 }
 
 function initializeOfflineSupport() {
@@ -300,10 +291,16 @@ function initializeOfflineSupport() {
 
 onMounted(() => {
   document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('blur', markBackgrounded)
+  window.addEventListener('focus', handleForeground)
+  window.addEventListener('pageshow', handleForeground)
   initializeOfflineSupport()
 })
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('blur', markBackgrounded)
+  window.removeEventListener('focus', handleForeground)
+  window.removeEventListener('pageshow', handleForeground)
   audioEngine.setContextStateHandler(null)
   audioEngine.stop()
 })
@@ -354,7 +351,7 @@ onBeforeUnmount(() => {
     </p>
     <p class="playback-status" aria-live="polite">
       <template v-if="isInterrupted">
-        Audio suspendu — appuyez sur REPRENDRE
+        Audio interrompu — touchez REPRENDRE pour reprendre
       </template>
       <template v-else-if="mode === 'sequence' && countInProgress">
         Décompte : pulse {{ countInProgress.pulseNumber }} / {{ countInProgress.totalPulses }}
