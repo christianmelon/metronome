@@ -53,6 +53,7 @@ class FakeAudioContext {
 
   currentTime = 0
   state = 'running'
+  resumeState = 'running'
   destination = {}
   oscillators = []
   stateChangeListeners = new Set()
@@ -81,7 +82,7 @@ class FakeAudioContext {
   }
 
   async resume() {
-    this.setState('running')
+    this.setState(this.resumeState)
   }
 
   createOscillator() {
@@ -213,6 +214,20 @@ describe('AudioEngine sequence playback', () => {
     assert.ok(
       Math.abs(context.oscillators.at(-1).startTime - 1.005) < 1e-9,
     )
+  })
+
+  it('keeps the audio context interrupted when the browser refuses to resume it', async (t) => {
+    const engine = new AudioEngine()
+
+    await engine.start(120)
+    t.after(() => engine.stop())
+    const context = FakeAudioContext.latest
+
+    context.setState('suspended')
+    context.resumeState = 'suspended'
+
+    await assert.rejects(engine.resume(), /did not allow audio playback to resume/)
+    assert.equal(context.state, 'suspended')
   })
 
   it('creates a new audio context when a closed context is restarted', async (t) => {

@@ -39,7 +39,8 @@ Le bouton **Mode tempo**, en bas à gauche, bascule entre **Standard** et **Méc
 - écouter et vérifier les tempos 60, 100, 120, 132, 200 et 264 BPM ;
 - laisser jouer plusieurs minutes, puis vérifier que la pulse reste régulière ;
 - modifier plusieurs fois le tempo pendant la lecture et vérifier l’absence de clics doubles ou d’interruption ;
-- vérifier START, STOP et un redémarrage; après le verrouillage ou un passage en arrière-plan sur iOS, toucher **REPRENDRE** au retour. La lecture pendant le verrouillage n’est pas garantie par le navigateur.
+- vérifier START et STOP; après le verrouillage ou un passage en arrière-plan sur iOS, attendre la reprise automatique ou toucher **START** si l’audio reste interrompu ou silencieux. Ce bouton redémarre la lecture depuis le début de la pulse ou de la séquence sélectionnée. La lecture pendant le verrouillage n’est pas garantie par le navigateur.
+- pour diagnostiquer la version et l’état audio sur iOS, consulter les attributs `data-build-id` et `data-audio-state` de l’élément principal dans l’inspecteur Web.
 
 Le build valide TypeScript et la compilation Vite, mais ne mesure pas la régularité audible. La précision perçue dépend aussi du navigateur, de la charge de l’appareil, du matériel audio et de sa latence. Ces essais réels restent nécessaires.
 

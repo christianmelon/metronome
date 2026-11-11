@@ -40,16 +40,20 @@ const loop = ref(false)
 const isRunning = ref(false)
 const isStarting = ref(false)
 const isInterrupted = ref(false)
+const canRestartAfterForeground = ref(false)
+const audioContextState = ref<AudioContextState | 'unknown'>('unknown')
 const isCompleted = ref(false)
 const errorMessage = ref('')
 const currentMeasure = ref<number | null>(null)
 const currentGroup = ref<number | null>(null)
 const countInProgress = ref<{ pulseNumber: number; totalPulses: number } | null>(null)
 const offlineStatus = ref<OfflineStatus>('hidden')
+const buildId = __APP_BUILD_ID__
 let transportRequest = 0
 let resumeOnForeground = false
 
 audioEngine.setContextStateHandler((state) => {
+  audioContextState.value = state
   if (state !== 'running' && (isRunning.value || isStarting.value)) {
     isInterrupted.value = true
   }
@@ -177,23 +181,16 @@ async function start() {
   errorMessage.value = ''
 
   try {
-    if (isInterrupted.value && isRunning.value) {
-      try {
-        await audioEngine.resume()
-        if (request === transportRequest) {
-          isInterrupted.value = false
-          isStarting.value = false
-        }
-        return
-      } catch {
-        if (request !== transportRequest) {
-          return
-        }
-        audioEngine.stop()
-        isRunning.value = false
-        isInterrupted.value = false
-      }
+    if (
+      isRunning.value &&
+      (isInterrupted.value || canRestartAfterForeground.value)
+    ) {
+      audioEngine.stop()
+      isRunning.value = false
+      isInterrupted.value = false
     }
+    resumeOnForeground = false
+    canRestartAfterForeground.value = false
 
     clearPlaybackStatus()
     if (mode.value === 'pulse') {
@@ -223,11 +220,13 @@ async function start() {
     if (request === transportRequest) {
       isRunning.value = true
       isInterrupted.value = false
+      canRestartAfterForeground.value = false
     }
   } catch (error: unknown) {
     if (request === transportRequest) {
       isRunning.value = false
       isInterrupted.value = false
+      canRestartAfterForeground.value = false
       errorMessage.value =
         error instanceof Error ? error.message : 'Impossible de démarrer la lecture audio.'
     }
@@ -245,6 +244,7 @@ function stop() {
   isRunning.value = false
   isStarting.value = false
   isInterrupted.value = false
+  canRestartAfterForeground.value = false
   clearPlaybackStatus()
 }
 
@@ -255,14 +255,35 @@ function markBackgrounded() {
 }
 
 function handleForeground() {
-  if (
-    document.visibilityState === 'visible' &&
-    resumeOnForeground &&
-    (isRunning.value || isStarting.value)
-  ) {
-    resumeOnForeground = false
-    isInterrupted.value = true
+  if (document.visibilityState !== 'visible' || !resumeOnForeground) {
+    return
   }
+
+  resumeOnForeground = false
+  if (!isRunning.value && !isStarting.value) {
+    return
+  }
+
+  canRestartAfterForeground.value = true
+  isInterrupted.value = true
+  const request = transportRequest
+  void audioEngine.resume().then(
+    () => {
+      if (request === transportRequest && isRunning.value) {
+        isInterrupted.value = false
+        errorMessage.value = ''
+      }
+    },
+    (error: unknown) => {
+      if (request === transportRequest && isRunning.value) {
+        isInterrupted.value = true
+        console.info(
+          'Audio did not resume automatically; use START to restart playback.',
+          error,
+        )
+      }
+    },
+  )
 }
 
 function handleVisibilityChange() {
@@ -292,6 +313,7 @@ function initializeOfflineSupport() {
 onMounted(() => {
   document.addEventListener('visibilitychange', handleVisibilityChange)
   window.addEventListener('blur', markBackgrounded)
+  window.addEventListener('pagehide', markBackgrounded)
   window.addEventListener('focus', handleForeground)
   window.addEventListener('pageshow', handleForeground)
   initializeOfflineSupport()
@@ -299,6 +321,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange)
   window.removeEventListener('blur', markBackgrounded)
+  window.removeEventListener('pagehide', markBackgrounded)
   window.removeEventListener('focus', handleForeground)
   window.removeEventListener('pageshow', handleForeground)
   audioEngine.setContextStateHandler(null)
@@ -307,7 +330,11 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="metronome">
+  <main
+    class="metronome"
+    :data-build-id="buildId"
+    :data-audio-state="audioContextState"
+  >
     <header class="app-header">
       <p class="eyebrow">PULSE AUDIO</p>
       <h1>Métronome</h1>
@@ -341,7 +368,7 @@ onBeforeUnmount(() => {
       :can-start="canStart"
       :is-running="isRunning"
       :is-starting="isStarting"
-      :is-interrupted="isInterrupted"
+      :can-restart="isInterrupted || canRestartAfterForeground"
       @start="start"
       @stop="stop"
     />
@@ -351,7 +378,10 @@ onBeforeUnmount(() => {
     </p>
     <p class="playback-status" aria-live="polite">
       <template v-if="isInterrupted">
-        Audio interrompu — touchez REPRENDRE pour reprendre
+        Audio interrompu ({{ audioContextState }}) — touchez START pour redémarrer
+      </template>
+      <template v-else-if="canRestartAfterForeground">
+        Retour au premier plan — si aucun son, touchez START pour redémarrer
       </template>
       <template v-else-if="mode === 'sequence' && countInProgress">
         Décompte : pulse {{ countInProgress.pulseNumber }} / {{ countInProgress.totalPulses }}
