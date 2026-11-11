@@ -175,7 +175,7 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 auto 32px;
+  margin: 0 auto 18px;
 }
 
 .tempo-step {
@@ -303,6 +303,12 @@ h1 {
 .tempo-mode-toggle[aria-pressed="true"] {
   border-color: #059669;
   color: #a7f3d0;
+}
+
+.random-probability-toggle {
+  display: block;
+  min-height: 40px;
+  margin: 0 auto 24px;
 }
 
 @media (max-width: 380px) {

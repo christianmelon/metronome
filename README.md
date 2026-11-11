@@ -28,6 +28,8 @@ Un appui court sur **+** ou **−** modifie le tempo d’1 BPM. Maintenir le bou
 
 Le bouton **Mode tempo**, en bas à gauche, bascule entre **Standard** et **Mécanique**. Le mode mécanique parcourt les valeurs de 40 à 208 BPM par pas de 2 (40–60), 3 (60–72), 4 (72–120), 6 (120–144) et 8 (144–208). Les bornes communes ne sont présentes qu’une fois. À l’activation, le tempo est aligné sur la valeur autorisée la plus proche; une égalité est arrondie vers le bas. Le maintien parcourt les valeurs une à une et accélère la répétition sans sauter de palier.
 
+Le bouton **Aléatoire**, entre le tempo et les boutons START/STOP, règle l’omission des clics : désactivé au démarrage, chaque appui passe à 10 %, 20 %, 30 %, 40 %, 50 %, puis revient à désactivé. Le pourcentage est une probabilité indépendante par clic, pas un quota exact. Les cinq premiers clics musicaux et tous les clics du décompte restent audibles. En mode Séquences, le réglage s’applique aux événements de mesure et de groupe; il ne crée pas de clics pour les subdivisions.
+
 ## Moteur audio
 
 `src/audio/AudioEngine.ts` programme chaque clic à l’avance sur l’horloge `AudioContext.currentTime`. Le timer JavaScript réveille uniquement le scheduler; il ne déclenche jamais directement un son. Le clic est un oscillateur sinusoïdal court avec une enveloppe de gain. Lors d’un changement de tempo, les clics déjà programmés finissent, puis le nouvel intervalle est appliqué après le dernier clic en attente.
@@ -39,6 +41,7 @@ Le bouton **Mode tempo**, en bas à gauche, bascule entre **Standard** et **Méc
 - écouter et vérifier les tempos 60, 100, 120, 132, 200 et 264 BPM ;
 - laisser jouer plusieurs minutes, puis vérifier que la pulse reste régulière ;
 - modifier plusieurs fois le tempo pendant la lecture et vérifier l’absence de clics doubles ou d’interruption ;
+- vérifier le cycle du bouton **Aléatoire**, les cinq premiers clics audibles, les omissions en Pulse et en Séquences et le changement de taux pendant la lecture ;
 - vérifier START et STOP; après le verrouillage ou un passage en arrière-plan sur iOS, attendre la reprise automatique ou toucher **START** si l’audio reste interrompu ou silencieux. Ce bouton redémarre la lecture depuis le début de la pulse ou de la séquence sélectionnée. La lecture pendant le verrouillage n’est pas garantie par le navigateur.
 - pour diagnostiquer la version et l’état audio sur iOS, consulter les attributs `data-build-id` et `data-audio-state` de l’élément principal dans l’inspecteur Web.
 

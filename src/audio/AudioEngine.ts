@@ -1,4 +1,5 @@
 import { MAX_TEMPO_BPM, MIN_TEMPO_BPM } from '../tempo.ts'
+import { MAX_CLICK_SKIP_PROBABILITY_PERCENT } from './clickSkipProbability.ts'
 import type {
   PlaybackTimeline,
   PlaybackTimelineEvent,
@@ -11,6 +12,7 @@ const MEASURE_CLICK_DURATION_SECONDS = 0.045
 const CLICK_FREQUENCY_HZ = 1800
 const MEASURE_CLICK_FREQUENCY_HZ = 2400
 const CLICK_VOLUME = 10
+const ALWAYS_PLAY_FIRST_MUSICAL_CLICKS = 5
 
 type ScheduledClick = {
   oscillator: OscillatorNode
@@ -21,6 +23,7 @@ type PulsePlayback = {
   kind: 'pulse'
   nextBeatTime: number
   lastScheduledTime: number | null
+  musicalClicksScheduled: number
 }
 
 type PendingProgressEvent = {
@@ -37,6 +40,7 @@ type SequencePlayback = {
   loopIteration: number
   lastScheduledTime: number | null
   lastScheduledUnitOffset: number | null
+  musicalClicksScheduled: number
   progressEvents: PendingProgressEvent[]
   progressIndex: number
   onProgress?: (event: PlaybackTimelineEvent) => void
@@ -53,10 +57,16 @@ export class AudioEngine {
   private contextStateListener: (() => void) | null = null
   private contextStateHandler: ((state: AudioContextState) => void) | null = null
   private tempo = 132
+  private clickSkipProbabilityPercent = 0
+  private readonly random: () => number
   private running = false
   private lifecycleToken = 0
   private startPromise: Promise<void> | null = null
   private playback: ActivePlayback | null = null
+
+  constructor(random: () => number = Math.random) {
+    this.random = random
+  }
 
   setContextStateHandler(
     handler: ((state: AudioContextState) => void) | null,
@@ -85,6 +95,7 @@ export class AudioEngine {
       kind: 'pulse',
       nextBeatTime: startTime,
       lastScheduledTime: null,
+      musicalClicksScheduled: 0,
     }))
   }
 
@@ -108,6 +119,7 @@ export class AudioEngine {
       loopIteration: 1,
       lastScheduledTime: null,
       lastScheduledUnitOffset: null,
+      musicalClicksScheduled: 0,
       progressEvents: [],
       progressIndex: 0,
       onProgress,
@@ -197,6 +209,20 @@ export class AudioEngine {
           this.playback.timeline,
         )
     }
+  }
+
+  setClickSkipProbability(percent: number): void {
+    if (
+      !Number.isInteger(percent) ||
+      percent < 0 ||
+      percent > MAX_CLICK_SKIP_PROBABILITY_PERCENT
+    ) {
+      throw new RangeError(
+        `Click skip probability must be an integer between 0 and ${MAX_CLICK_SKIP_PROBABILITY_PERCENT} percent.`,
+      )
+    }
+
+    this.clickSkipProbabilityPercent = percent
   }
 
   private async beginPlayback(
@@ -289,7 +315,10 @@ export class AudioEngine {
     }
 
     while (playback.nextBeatTime < now + SCHEDULE_AHEAD_TIME) {
-      this.scheduleClick(playback.nextBeatTime, 'pulse')
+      if (this.shouldPlayMusicalClick(playback.musicalClicksScheduled)) {
+        this.scheduleClick(playback.nextBeatTime, 'pulse')
+      }
+      playback.musicalClicksScheduled += 1
       playback.lastScheduledTime = playback.nextBeatTime
       playback.nextBeatTime += this.secondsPerBeat
     }
@@ -310,7 +339,15 @@ export class AudioEngine {
       }
 
       if (eventTime >= now) {
-        this.scheduleClick(eventTime, this.clickKind(next.event))
+        if (
+          next.event.kind === 'count-in' ||
+          this.shouldPlayMusicalClick(playback.musicalClicksScheduled)
+        ) {
+          this.scheduleClick(eventTime, this.clickKind(next.event))
+        }
+        if (next.event.kind !== 'count-in') {
+          playback.musicalClicksScheduled += 1
+        }
       }
       playback.progressEvents.push({
         time: Math.max(now, eventTime),
@@ -405,6 +442,17 @@ export class AudioEngine {
       return 'pulse'
     }
     return event.kind
+  }
+
+  private shouldPlayMusicalClick(clickIndex: number): boolean {
+    if (
+      clickIndex < ALWAYS_PLAY_FIRST_MUSICAL_CLICKS ||
+      this.clickSkipProbabilityPercent === 0
+    ) {
+      return true
+    }
+
+    return this.random() >= this.clickSkipProbabilityPercent / 100
   }
 
   private scheduleClick(time: number, kind: ClickKind): void {

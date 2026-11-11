@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
+import { nextClickSkipProbability } from './audio/clickSkipProbability'
 import { AudioEngine } from './audio/AudioEngine'
 import ModeSelector from './components/ModeSelector.vue'
 import SequenceControls from './components/SequenceControls.vue'
@@ -31,6 +32,7 @@ const audioEngine = new AudioEngine()
 const mode = ref<PlaybackMode>('pulse')
 const tempoAdjustmentMode = ref<TempoAdjustmentMode>('standard')
 const tempo = ref(132)
+const clickSkipProbability = ref(0)
 const score = shallowRef<ParsedScore | null>(defaultSequence.score)
 const selectedSequenceId = ref(defaultSequence.id)
 const startMeasure = ref(1)
@@ -97,6 +99,12 @@ function toggleTempoAdjustmentMode() {
     updateTempo(nearestMechanicalTempo(tempo.value))
   }
   tempoAdjustmentMode.value = nextMode
+}
+
+function cycleClickSkipProbability() {
+  const nextProbability = nextClickSkipProbability(clickSkipProbability.value)
+  audioEngine.setClickSkipProbability(nextProbability)
+  clickSkipProbability.value = nextProbability
 }
 
 function clearPlaybackStatus() {
@@ -364,6 +372,15 @@ onBeforeUnmount(() => {
       :mode="tempoAdjustmentMode"
       @change="updateTempo"
     />
+    <button
+      class="tempo-mode-toggle random-probability-toggle"
+      type="button"
+      :aria-pressed="clickSkipProbability > 0"
+      aria-label="Modifier la probabilité d’omission aléatoire des clics"
+      @click="cycleClickSkipProbability"
+    >
+      Aléatoire : {{ clickSkipProbability === 0 ? 'désactivé' : `${clickSkipProbability} %` }}
+    </button>
     <Transport
       :can-start="canStart"
       :is-running="isRunning"

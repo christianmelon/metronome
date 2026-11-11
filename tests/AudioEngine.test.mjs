@@ -122,6 +122,96 @@ describe('AudioEngine sequence playback', () => {
     assert.ok(Math.abs(context.oscillators[1].startTime - 1.05) < 1e-9)
   })
 
+  it('omits later pulse clicks without shifting the beat schedule', async (t) => {
+    let randomCalls = 0
+    const engine = new AudioEngine(() => {
+      randomCalls += 1
+      return 0
+    })
+    engine.setClickSkipProbability(50)
+
+    await engine.start(120)
+    t.after(() => engine.stop())
+    const context = FakeAudioContext.latest
+
+    for (let beatIndex = 1; beatIndex <= 6; beatIndex += 1) {
+      context.currentTime = beatIndex * 0.5
+      engine.schedule()
+    }
+
+    assert.deepEqual(
+      context.oscillators.map((oscillator) => oscillator.startTime),
+      [0.05, 0.55, 1.05, 1.55, 2.05],
+    )
+    assert.equal(randomCalls, 2)
+
+    engine.setClickSkipProbability(0)
+    context.currentTime = 3.5
+    engine.schedule()
+
+    assert.equal(context.oscillators.at(-1).startTime, 3.55)
+    assert.equal(randomCalls, 2)
+  })
+
+  it('always plays the count-in and first five sequence clicks', async (t) => {
+    let randomCalls = 0
+    const engine = new AudioEngine(() => {
+      randomCalls += 1
+      return 0
+    })
+    engine.setClickSkipProbability(50)
+    const timeline = {
+      initialEvents: [
+        { kind: 'count-in', unitOffset: 0, pulseNumber: 1, totalPulses: 1 },
+        ...Array.from({ length: 6 }, (_, index) => ({
+          kind: index === 0 ? 'measure' : 'group',
+          unitOffset: (index + 1) * 4,
+          measureNumber: 1,
+          groupNumber: index + 1,
+        })),
+      ],
+      loopEvents: [],
+      selectedMeasures: [],
+      startMeasure: 1,
+      endMeasure: 1,
+      countInPulses: 1,
+      countInUnits: 4,
+      loopLengthUnits: 28,
+      endUnitOffset: 32,
+      elementaryUnitsPerTempoBeat: 4,
+      loop: false,
+    }
+
+    await engine.startSequence(timeline, 120)
+    t.after(() => engine.stop())
+    const context = FakeAudioContext.latest
+
+    for (let beatIndex = 1; beatIndex <= 6; beatIndex += 1) {
+      context.currentTime = beatIndex * 0.5
+      engine.schedule()
+    }
+
+    assert.deepEqual(
+      context.oscillators.map((oscillator) => oscillator.startTime),
+      [0.05, 0.55, 1.05, 1.55, 2.05, 2.55],
+    )
+    assert.equal(randomCalls, 1)
+  })
+
+  it('accepts only integer skip probabilities from zero to fifty percent', () => {
+    const engine = new AudioEngine()
+
+    for (const probability of [0, 10, 20, 30, 40, 50]) {
+      assert.doesNotThrow(() => engine.setClickSkipProbability(probability))
+    }
+    for (const probability of [-10, 51, 10.5, Number.NaN]) {
+      assert.throws(
+        () => engine.setClickSkipProbability(probability),
+        RangeError,
+      )
+    }
+  })
+
   it('schedules measure accents and group clicks at AudioContext times', async (t) => {
     const timeline = buildPlaybackTimeline(score, {
       startMeasure: 1,
