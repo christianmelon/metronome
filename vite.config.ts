@@ -25,8 +25,14 @@ function precacheManifestPlugin(): Plugin {
 }
 
 const buildId = randomUUID()
+const repositoryName = process.env.GITHUB_REPOSITORY?.split('/')[1]
+const base =
+  process.env.GITHUB_ACTIONS === 'true' && repositoryName
+    ? `/${repositoryName}/`
+    : '/'
 
 export default defineConfig({
+  base,
   plugins: [vue(), precacheManifestPlugin()],
   define: {
     __APP_BUILD_ID__: JSON.stringify(buildId),

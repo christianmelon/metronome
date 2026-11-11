@@ -68,6 +68,10 @@ npm run preview
 
 Le premier accès doit se faire en ligne. Attendre le message **Application prête hors ligne** avant de couper le réseau; ensuite, recharger la page pour vérifier que l’application démarre. Les Service Workers nécessitent HTTPS ou `localhost`; un accès HTTP via l’adresse IP locale d’un ordinateur ne suffit pas. Sur iOS, le système peut supprimer les données de site et les caches; l’usage hors ligne n’est donc pas une garantie de conservation permanente.
 
+## Déploiement GitHub Pages
+
+Le workflow `.github/workflows/deploy.yml` exécute les tests et le build sur chaque push vers `main`, puis publie `dist` sur GitHub Pages. Pour activer le déploiement, ouvrir **Settings → Pages** dans le dépôt et choisir **GitHub Actions** comme source (*Build and deployment → Source*). Le site du dépôt `christianmelon/metronome` est publié à l’adresse `https://christianmelon.github.io/metronome/`.
+
 ## Lecture des séquences
 
 Dans **Séquences**, choisis une entrée de la liste intégrée, puis ajuste la plage de mesures, le décompte ou la boucle. Le décompte n’est joué qu’au démarrage, pas à chaque boucle.
