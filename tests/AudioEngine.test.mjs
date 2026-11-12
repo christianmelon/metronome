@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { beforeEach, describe, it } from 'node:test'
 import { AudioEngine } from '../src/audio/AudioEngine.ts'
+import { requestAutomaticAudioSession } from '../src/audio/audioSession.ts'
 import { buildPlaybackTimeline } from '../src/music/playbackTimeline.ts'
 import { parseScoreJson } from '../src/music/score.ts'
 import { readFileSync } from 'node:fs'
@@ -54,6 +55,7 @@ class FakeAudioContext {
   currentTime = 0
   state = 'running'
   resumeState = 'running'
+  resumeCalls = 0
   destination = {}
   oscillators = []
   stateChangeListeners = new Set()
@@ -82,6 +84,7 @@ class FakeAudioContext {
   }
 
   async resume() {
+    this.resumeCalls += 1
     this.setState(this.resumeState)
   }
 
@@ -98,9 +101,42 @@ class FakeAudioContext {
 
 const score = parseScoreJson(readFileSync('examples/test-lecture.json', 'utf8'))
 
+describe('audio session setup', () => {
+  it('requests automatic mode when the Audio Session API is available', () => {
+    const navigatorLike = { audioSession: { type: 'playback' } }
+
+    assert.equal(requestAutomaticAudioSession(navigatorLike), true)
+    assert.equal(navigatorLike.audioSession.type, 'auto')
+  })
+
+  it('continues without changing anything when the Audio Session API is absent', () => {
+    assert.equal(requestAutomaticAudioSession(undefined), false)
+    assert.equal(requestAutomaticAudioSession({}), false)
+  })
+
+  it('falls back to the browser default if setting playback mode fails', (t) => {
+    const originalInfo = console.info
+    console.info = () => {}
+    t.after(() => {
+      console.info = originalInfo
+    })
+
+    const audioSession = {}
+    Object.defineProperty(audioSession, 'type', {
+      get: () => 'auto',
+      set: () => {
+        throw new Error('Audio session cannot be changed.')
+      },
+    })
+
+    assert.equal(requestAutomaticAudioSession({ audioSession }), false)
+  })
+})
+
 beforeEach(() => {
   FakeAudioContext.latest = null
   globalThis.window = { AudioContext: FakeAudioContext }
+  globalThis.document = { visibilityState: 'visible' }
 })
 
 describe('AudioEngine sequence playback', () => {
@@ -283,7 +319,7 @@ describe('AudioEngine sequence playback', () => {
     assert.equal(scheduledClick.stopTime, context.currentTime)
   })
 
-  it('resumes a suspended pulse without replaying missed clicks', async (t) => {
+  it('automatically resumes a suspended pulse without replaying missed clicks', async (t) => {
     const engine = new AudioEngine()
     const contextStates = []
     engine.setContextStateHandler((state) => contextStates.push(state))
@@ -299,6 +335,7 @@ describe('AudioEngine sequence playback', () => {
     await engine.resume()
 
     assert.equal(context.state, 'running')
+    assert.equal(context.resumeCalls, 1)
     assert.deepEqual(contextStates.slice(-2), ['suspended', 'running'])
     assert.equal(context.oscillators.length, scheduledBeforeResume + 1)
     assert.ok(
@@ -306,18 +343,52 @@ describe('AudioEngine sequence playback', () => {
     )
   })
 
-  it('keeps the audio context interrupted when the browser refuses to resume it', async (t) => {
+  it('defers automatic resume while the page is hidden', async (t) => {
     const engine = new AudioEngine()
 
     await engine.start(120)
     t.after(() => engine.stop())
     const context = FakeAudioContext.latest
 
+    globalThis.document.visibilityState = 'hidden'
     context.setState('suspended')
+
+    assert.equal(context.resumeCalls, 0)
+    assert.equal(context.state, 'suspended')
+
+    globalThis.document.visibilityState = 'visible'
+    await engine.resume()
+
+    assert.equal(context.resumeCalls, 1)
+    assert.equal(context.state, 'running')
+  })
+
+  it('keeps interruptions visible and allows a later forced resume', async (t) => {
+    const engine = new AudioEngine()
+    const originalInfo = console.info
+    console.info = () => {}
+    t.after(() => {
+      console.info = originalInfo
+    })
+
+    await engine.start(120)
+    t.after(() => engine.stop())
+    const context = FakeAudioContext.latest
+
     context.resumeState = 'suspended'
+    context.setState('suspended')
 
     await assert.rejects(engine.resume(), /did not allow audio playback to resume/)
     assert.equal(context.state, 'suspended')
+
+    context.setState('interrupted')
+    assert.equal(context.resumeCalls, 1)
+
+    context.resumeState = 'running'
+    await engine.resume(true)
+
+    assert.equal(context.resumeCalls, 2)
+    assert.equal(context.state, 'running')
   })
 
   it('creates a new audio context when a closed context is restarted', async (t) => {
@@ -325,9 +396,11 @@ describe('AudioEngine sequence playback', () => {
 
     await engine.start(120)
     const closedContext = FakeAudioContext.latest
+    globalThis.document.visibilityState = 'hidden'
     closedContext.setState('closed')
     engine.stop()
 
+    globalThis.document.visibilityState = 'visible'
     await engine.start(120)
     t.after(() => engine.stop())
 

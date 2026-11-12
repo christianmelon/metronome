@@ -34,6 +34,8 @@ Le bouton **Aléatoire**, entre le tempo et les boutons START/STOP, règle l’o
 
 `src/audio/AudioEngine.ts` programme chaque clic à l’avance sur l’horloge `AudioContext.currentTime`. Le timer JavaScript réveille uniquement le scheduler; il ne déclenche jamais directement un son. Le clic est un oscillateur sinusoïdal court avec une enveloppe de gain. Lors d’un changement de tempo, les clics déjà programmés finissent, puis le nouvel intervalle est appliqué après le dernier clic en attente.
 
+Au démarrage, l’application demande le type `auto` à `navigator.audioSession` lorsque cette API existe. C’est le réglage par défaut du navigateur. Le maintien de la lecture lorsque l’iPhone est verrouillé n’est pas garanti. La valeur demandée est exposée sur `data-audio-session-request` dans l’élément principal.
+
 ## Vérifications audio manuelles
 
 À effectuer sur ordinateur et sur un appareil iOS/Safari :
@@ -42,7 +44,7 @@ Le bouton **Aléatoire**, entre le tempo et les boutons START/STOP, règle l’o
 - laisser jouer plusieurs minutes, puis vérifier que la pulse reste régulière ;
 - modifier plusieurs fois le tempo pendant la lecture et vérifier l’absence de clics doubles ou d’interruption ;
 - vérifier le cycle du bouton **Aléatoire**, les cinq premiers clics audibles, les omissions en Pulse et en Séquences et le changement de taux pendant la lecture ;
-- vérifier START et STOP; après le verrouillage ou un passage en arrière-plan sur iOS, attendre la reprise automatique ou toucher **START** si l’audio reste interrompu ou silencieux. Ce bouton redémarre la lecture depuis le début de la pulse ou de la séquence sélectionnée. La lecture pendant le verrouillage n’est pas garantie par le navigateur.
+- vérifier START et STOP; en cas de suspension audio quand la page est visible, l’application tente une reprise automatique. Sur iOS, vérifier que le type `auto` est appliqué (`navigator.audioSession.type`, si disponible), puis tester le verrouillage; toucher **START** si l’audio reste interrompu ou silencieux. Ce bouton redémarre la lecture depuis le début de la pulse ou de la séquence sélectionnée. La lecture pendant le verrouillage n’est pas garantie par le navigateur.
 - pour diagnostiquer la version et l’état audio sur iOS, consulter les attributs `data-build-id` et `data-audio-state` de l’élément principal dans l’inspecteur Web.
 
 Le build valide TypeScript et la compilation Vite, mais ne mesure pas la régularité audible. La précision perçue dépend aussi du navigateur, de la charge de l’appareil, du matériel audio et de sa latence. Ces essais réels restent nécessaires.

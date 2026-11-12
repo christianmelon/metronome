@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { nextClickSkipProbability } from './audio/clickSkipProbability'
 import { AudioEngine } from './audio/AudioEngine'
+import { requestAutomaticAudioSession } from './audio/audioSession'
 import ModeSelector from './components/ModeSelector.vue'
 import SequenceControls from './components/SequenceControls.vue'
 import TempoControl from './components/TempoControl.vue'
@@ -56,7 +57,9 @@ let resumeOnForeground = false
 
 audioEngine.setContextStateHandler((state) => {
   audioContextState.value = state
-  if (state !== 'running' && (isRunning.value || isStarting.value)) {
+  if (state === 'running' && isRunning.value) {
+    isInterrupted.value = false
+  } else if (state !== 'running' && (isRunning.value || isStarting.value)) {
     isInterrupted.value = true
   }
 })
@@ -184,6 +187,8 @@ async function start() {
     return
   }
 
+  requestAutomaticAudioSession(navigator)
+
   const request = ++transportRequest
   isStarting.value = true
   errorMessage.value = ''
@@ -275,7 +280,7 @@ function handleForeground() {
   canRestartAfterForeground.value = true
   isInterrupted.value = true
   const request = transportRequest
-  void audioEngine.resume().then(
+  void audioEngine.resume(true).then(
     () => {
       if (request === transportRequest && isRunning.value) {
         isInterrupted.value = false
@@ -342,6 +347,7 @@ onBeforeUnmount(() => {
     class="metronome"
     :data-build-id="buildId"
     :data-audio-state="audioContextState"
+    data-audio-session-request="auto"
   >
     <header class="app-header">
       <p class="eyebrow">PULSE AUDIO</p>

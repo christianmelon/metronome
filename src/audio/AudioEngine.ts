@@ -56,6 +56,8 @@ export class AudioEngine {
   private readonly scheduledClicks = new Set<ScheduledClick>()
   private contextStateListener: (() => void) | null = null
   private contextStateHandler: ((state: AudioContextState) => void) | null = null
+  private resumePromise: Promise<void> | null = null
+  private automaticResumeAttempted = false
   private tempo = 132
   private clickSkipProbabilityPercent = 0
   private readonly random: () => number
@@ -131,6 +133,8 @@ export class AudioEngine {
     this.lifecycleToken += 1
     this.running = false
     this.startPromise = null
+    this.resumePromise = null
+    this.automaticResumeAttempted = false
     this.playback = null
 
     if (this.schedulerTimer !== null) {
@@ -149,7 +153,23 @@ export class AudioEngine {
     }
   }
 
-  async resume(): Promise<void> {
+  async resume(force = false): Promise<void> {
+    if (this.resumePromise && !force) {
+      return this.resumePromise
+    }
+
+    const pendingResume = this.resumePlayback()
+    this.resumePromise = pendingResume
+    try {
+      await pendingResume
+    } finally {
+      if (this.resumePromise === pendingResume) {
+        this.resumePromise = null
+      }
+    }
+  }
+
+  private async resumePlayback(): Promise<void> {
     const context = this.audioContext
     if (!this.running || !context || !this.playback) {
       throw new Error('There is no active playback to resume.')
@@ -259,7 +279,28 @@ export class AudioEngine {
       this.audioContext = new window.AudioContext()
       const context = this.audioContext
       this.contextStateListener = () => {
-        this.contextStateHandler?.(context.state)
+        const state = context.state
+        this.contextStateHandler?.(state)
+
+        if (state === 'running') {
+          this.automaticResumeAttempted = false
+          return
+        }
+
+        if (
+          this.running &&
+          !this.automaticResumeAttempted &&
+          typeof document !== 'undefined' &&
+          document.visibilityState === 'visible'
+        ) {
+          this.automaticResumeAttempted = true
+          void this.resume().catch((error: unknown) => {
+            console.info(
+              'Audio did not resume automatically; use START to restart playback.',
+              error,
+            )
+          })
+        }
       }
       context.addEventListener('statechange', this.contextStateListener)
       this.contextStateHandler?.(context.state)
