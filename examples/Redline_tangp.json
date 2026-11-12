@@ -1,5 +1,5 @@
 {
-  "tempo": 80,
+  "tempo": 120,
   "tempoUnit": {
     "denominator": 4,
     "elementaryUnitsPerTempoBeat": 4
@@ -109,6 +109,110 @@
       "measures": "129",
       "meter": "5/8",
       "groups": [6, 4]
+    },
+    {
+      "measures": "130",
+      "meter": "3/4"
+    },
+    {
+      "measures": "131",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "132",
+      "meter": "3/4"
+    },
+    {
+      "measures": "133",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "134",
+      "meter": "3/4"
+    },
+    {
+      "measures": "135",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "136",
+      "meter": "3/4"
+    },
+    {
+      "measures": "137",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "138",
+      "meter": "2/4"
+    },
+    {
+      "measures": "139",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "140",
+      "meter": "3/4"
+    },
+    {
+      "measures": "141",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "142",
+      "meter": "3/4"
+    },
+    {
+      "measures": "143",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "144",
+      "meter": "4/4"
+    },
+    {
+      "measures": "145",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "146",
+      "meter": "3/4"
+    },
+    {
+      "measures": "147",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "148",
+      "meter": "4/4"
+    },
+    {
+      "measures": "149",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "150",
+      "meter": "3/4"
+    },
+    {
+      "measures": "151",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "152-154",
+      "meter": "6/8",
+      "groups": [6, 6]
     }
   ]
 }
