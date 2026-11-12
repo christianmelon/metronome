@@ -36,7 +36,7 @@ Le bouton **Aléatoire**, entre le tempo et les boutons START/STOP, règle l’o
 
 Au démarrage, l’application demande le type `auto` à `navigator.audioSession` lorsque cette API existe. C’est le réglage par défaut du navigateur. Le maintien de la lecture lorsque l’iPhone est verrouillé n’est pas garanti. La valeur demandée est exposée sur `data-audio-session-request` dans l’élément principal.
 
-L’option **Garder l’écran allumé pendant la lecture** utilise l’API Screen Wake Lock lorsqu’elle est disponible, que la page est visible et que l’application est servie en HTTPS. Elle est désactivée par défaut, reste sélectionnable même si l’API est indisponible, ne s’applique que pendant la lecture et est libérée à l’arrêt. L’interface indique quand la demande ne peut pas être appliquée. Cette API évite la veille automatique, mais n’empêche pas un verrouillage manuel et ne garantit pas la lecture audio en arrière-plan.
+Sur mobile, l’application demande automatiquement le Screen Wake Lock pendant la lecture. La détection utilise l’indicateur mobile du navigateur lorsqu’il existe, sinon le type d’interaction tactile. Sur ordinateur, aucun Wake Lock n’est demandé. Si l’API est indisponible ou refuse la demande, le métronome continue et l’interface affiche l’état. Le Wake Lock nécessite une page visible en HTTPS; il évite la veille automatique, mais n’empêche pas un verrouillage manuel et ne garantit pas la lecture audio en arrière-plan.
 
 ## Vérifications audio manuelles
 
@@ -46,7 +46,7 @@ L’option **Garder l’écran allumé pendant la lecture** utilise l’API Scre
 - laisser jouer plusieurs minutes, puis vérifier que la pulse reste régulière ;
 - modifier plusieurs fois le tempo pendant la lecture et vérifier l’absence de clics doubles ou d’interruption ;
 - vérifier le cycle du bouton **Aléatoire**, les cinq premiers clics audibles, les omissions en Pulse et en Séquences et le changement de taux pendant la lecture ;
-- vérifier START et STOP; en cas de suspension audio quand la page est visible, l’application tente une reprise automatique. Sur iOS, activer **Garder l’écran allumé pendant la lecture** et vérifier que l’écran ne s’assombrit pas automatiquement; tester séparément le verrouillage manuel, qui n’est pas empêché par cette API. Toucher **START** si l’audio reste interrompu ou silencieux. Ce bouton redémarre la lecture depuis le début de la pulse ou de la séquence sélectionnée. La lecture pendant le verrouillage n’est pas garantie par le navigateur.
+- vérifier START et STOP; en cas de suspension audio quand la page est visible, l’application tente une reprise automatique. Sur mobile, vérifier que l’écran ne s’assombrit pas automatiquement pendant la lecture et que le Wake Lock est libéré à l’arrêt; sur ordinateur, vérifier qu’aucun Wake Lock n’est demandé. Tester séparément le verrouillage manuel, qui n’est pas empêché par cette API. Toucher **START** si l’audio reste interrompu ou silencieux. Ce bouton redémarre la lecture depuis le début de la pulse ou de la séquence sélectionnée. La lecture pendant le verrouillage n’est pas garantie par le navigateur.
 - pour diagnostiquer la version et l’état audio sur iOS, consulter les attributs `data-build-id` et `data-audio-state` de l’élément principal dans l’inspecteur Web.
 
 Le build valide TypeScript et la compilation Vite, mais ne mesure pas la régularité audible. La précision perçue dépend aussi du navigateur, de la charge de l’appareil, du matériel audio et de sa latence. Ces essais réels restent nécessaires.

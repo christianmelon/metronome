@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { ScreenWakeLockController } from '../src/screenWakeLock.ts'
+import {
+  isMobileDevice,
+  ScreenWakeLockController,
+} from '../src/screenWakeLock.ts'
 
 function createSentinel() {
   const listeners = new Set()
@@ -29,6 +32,35 @@ describe('ScreenWakeLockController', () => {
     assert.equal(controller.supported, false)
     await controller.request()
     assert.deepEqual(states, ['unsupported'])
+  })
+
+  describe('isMobileDevice', () => {
+    it('uses the browser mobile hint when available', () => {
+      assert.equal(isMobileDevice({ userAgentData: { mobile: true } }), true)
+      assert.equal(
+        isMobileDevice(
+          { userAgentData: { mobile: false } },
+          () => ({ matches: true }),
+        ),
+        false,
+      )
+    })
+
+    it('falls back to the coarse-pointer and no-hover media query', () => {
+      let query
+      const mobile = isMobileDevice({}, (value) => {
+        query = value
+        return { matches: true }
+      })
+
+      assert.equal(mobile, true)
+      assert.equal(query, '(pointer: coarse) and (hover: none)')
+    })
+
+    it('does not classify a device as mobile without either signal', () => {
+      assert.equal(isMobileDevice({}), false)
+      assert.equal(isMobileDevice({}, () => ({ matches: false })), false)
+    })
   })
 
   it('requests a screen lock once and releases it on demand', async () => {

@@ -6,6 +6,10 @@ export type ScreenWakeLockState =
   | 'unsupported'
   | 'failed'
 
+const MOBILE_INTERACTION_QUERY = '(pointer: coarse) and (hover: none)'
+
+type MatchMediaLike = (query: string) => Pick<MediaQueryList, 'matches'>
+
 type WakeLockSentinelLike = {
   readonly released?: boolean
   addEventListener(type: 'release', listener: EventListener): void
@@ -14,6 +18,48 @@ type WakeLockSentinelLike = {
 
 type WakeLockApiLike = {
   request(type: 'screen'): Promise<WakeLockSentinelLike>
+}
+
+function getMobileHint(navigatorLike: unknown): boolean | null {
+  if (
+    typeof navigatorLike !== 'object' ||
+    navigatorLike === null ||
+    !('userAgentData' in navigatorLike)
+  ) {
+    return null
+  }
+
+  const userAgentData = navigatorLike.userAgentData
+  if (
+    typeof userAgentData !== 'object' ||
+    userAgentData === null ||
+    !('mobile' in userAgentData) ||
+    typeof userAgentData.mobile !== 'boolean'
+  ) {
+    return null
+  }
+
+  return userAgentData.mobile
+}
+
+export function isMobileDevice(
+  navigatorLike: unknown,
+  matchMediaLike?: MatchMediaLike,
+): boolean {
+  const mobileHint = getMobileHint(navigatorLike)
+  if (mobileHint !== null) {
+    return mobileHint
+  }
+
+  if (!matchMediaLike) {
+    return false
+  }
+
+  try {
+    return matchMediaLike(MOBILE_INTERACTION_QUERY).matches
+  } catch {
+    return false
+  }
 }
 
 function isWakeLockApi(value: unknown): value is WakeLockApiLike {
