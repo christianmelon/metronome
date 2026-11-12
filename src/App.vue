@@ -3,6 +3,10 @@ import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { nextClickSkipProbability } from './audio/clickSkipProbability'
 import { AudioEngine } from './audio/AudioEngine'
 import { requestAutomaticAudioSession } from './audio/audioSession'
+import {
+  ScreenWakeLockController,
+  type ScreenWakeLockState,
+} from './screenWakeLock'
 import ModeSelector from './components/ModeSelector.vue'
 import SequenceControls from './components/SequenceControls.vue'
 import TempoControl from './components/TempoControl.vue'
@@ -51,9 +55,21 @@ const currentMeasure = ref<number | null>(null)
 const currentGroup = ref<number | null>(null)
 const countInProgress = ref<{ pulseNumber: number; totalPulses: number } | null>(null)
 const offlineStatus = ref<OfflineStatus>('hidden')
+const keepScreenAwake = ref(false)
+const screenWakeLockState = ref<ScreenWakeLockState>('idle')
 const buildId = __APP_BUILD_ID__
 let transportRequest = 0
 let resumeOnForeground = false
+const screenWakeLock = new ScreenWakeLockController(
+  typeof navigator === 'undefined' ? undefined : navigator,
+  (state) => {
+    screenWakeLockState.value = state
+  },
+)
+const screenWakeLockSupported = screenWakeLock.supported
+if (!screenWakeLockSupported) {
+  screenWakeLockState.value = 'unsupported'
+}
 
 audioEngine.setContextStateHandler((state) => {
   audioContextState.value = state
@@ -109,6 +125,36 @@ function cycleClickSkipProbability() {
   audioEngine.setClickSkipProbability(nextProbability)
   clickSkipProbability.value = nextProbability
 }
+
+function updateKeepScreenAwake(event: Event) {
+  if (!(event.currentTarget instanceof HTMLInputElement)) {
+    return
+  }
+
+  keepScreenAwake.value = event.currentTarget.checked
+  if (!keepScreenAwake.value) {
+    void screenWakeLock.release()
+  } else if (isRunning.value || isStarting.value) {
+    void screenWakeLock.request()
+  }
+}
+
+const screenWakeLockMessage = computed(() => {
+  switch (screenWakeLockState.value) {
+    case 'requesting':
+      return 'Demande de maintien de l’écran…'
+    case 'active':
+      return 'L’écran reste allumé pendant la lecture.'
+    case 'released':
+      return 'Le navigateur a libéré le maintien de l’écran.'
+    case 'unsupported':
+      return 'Wake Lock indisponible ici (navigateur ou contexte non sécurisé); le métronome continue.'
+    case 'failed':
+      return 'Impossible de maintenir l’écran allumé; le métronome continue.'
+    case 'idle':
+      return 'Le maintien s’activera pendant la lecture.'
+  }
+})
 
 function clearPlaybackStatus() {
   isCompleted.value = false
@@ -192,6 +238,9 @@ async function start() {
   const request = ++transportRequest
   isStarting.value = true
   errorMessage.value = ''
+  if (keepScreenAwake.value) {
+    void screenWakeLock.request()
+  }
 
   try {
     if (
@@ -225,6 +274,7 @@ async function start() {
             isRunning.value = false
             isInterrupted.value = false
             isCompleted.value = true
+            void screenWakeLock.release()
           }
         },
       )
@@ -240,6 +290,7 @@ async function start() {
       isRunning.value = false
       isInterrupted.value = false
       canRestartAfterForeground.value = false
+      void screenWakeLock.release()
       errorMessage.value =
         error instanceof Error ? error.message : 'Impossible de démarrer la lecture audio.'
     }
@@ -254,6 +305,7 @@ function stop() {
   transportRequest += 1
   resumeOnForeground = false
   audioEngine.stop()
+  void screenWakeLock.release()
   isRunning.value = false
   isStarting.value = false
   isInterrupted.value = false
@@ -268,7 +320,18 @@ function markBackgrounded() {
 }
 
 function handleForeground() {
-  if (document.visibilityState !== 'visible' || !resumeOnForeground) {
+  if (document.visibilityState !== 'visible') {
+    return
+  }
+
+  if (
+    keepScreenAwake.value &&
+    (isRunning.value || isStarting.value)
+  ) {
+    void screenWakeLock.request()
+  }
+
+  if (!resumeOnForeground) {
     return
   }
 
@@ -339,6 +402,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('pageshow', handleForeground)
   audioEngine.setContextStateHandler(null)
   audioEngine.stop()
+  void screenWakeLock.release()
 })
 </script>
 
@@ -395,6 +459,32 @@ onBeforeUnmount(() => {
       @start="start"
       @stop="stop"
     />
+
+    <div class="wake-lock-setting">
+      <label class="wake-lock-option">
+        <input
+          type="checkbox"
+          :checked="keepScreenAwake"
+          aria-describedby="screen-wake-lock-help"
+          @change="updateKeepScreenAwake"
+        />
+        <span>Garder l’écran allumé pendant la lecture</span>
+      </label>
+      <p id="screen-wake-lock-help" class="wake-lock-help">
+        Évite la veille automatique; ne maintient pas le son après un verrouillage manuel.
+      </p>
+      <p
+        v-if="
+          !screenWakeLockSupported ||
+          keepScreenAwake ||
+          screenWakeLockState === 'failed'
+        "
+        class="wake-lock-status"
+        aria-live="polite"
+      >
+        {{ screenWakeLockMessage }}
+      </p>
+    </div>
 
     <p v-if="errorMessage" class="error-message" role="alert">
       {{ errorMessage }}
