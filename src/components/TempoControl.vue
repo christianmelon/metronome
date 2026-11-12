@@ -14,6 +14,7 @@ import {
 const props = defineProps<{
   tempo: number
   mode: 'standard' | 'mechanical'
+  disabled: boolean
 }>()
 
 const emit = defineEmits<{
@@ -166,7 +167,7 @@ watch(
           ? 'Diminuer le tempo au palier mécanique précédent'
           : 'Diminuer le tempo de 1 BPM'
       "
-      :disabled="tempo <= (mode === 'mechanical' ? MIN_MECHANICAL_TEMPO_BPM : MIN_TEMPO_BPM)"
+      :disabled="disabled || tempo <= (mode === 'mechanical' ? MIN_MECHANICAL_TEMPO_BPM : MIN_TEMPO_BPM)"
       @pointerdown="startHold($event, -1)"
       @pointerup="endHold"
       @pointercancel="cancelHold"
@@ -188,7 +189,7 @@ watch(
           ? 'Augmenter le tempo au palier mécanique suivant'
           : 'Augmenter le tempo de 1 BPM'
       "
-      :disabled="tempo >= (mode === 'mechanical' ? MAX_MECHANICAL_TEMPO_BPM : MAX_TEMPO_BPM)"
+      :disabled="disabled || tempo >= (mode === 'mechanical' ? MAX_MECHANICAL_TEMPO_BPM : MAX_TEMPO_BPM)"
       @pointerdown="startHold($event, 1)"
       @pointerup="endHold"
       @pointercancel="cancelHold"

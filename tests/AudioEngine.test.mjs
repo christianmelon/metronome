@@ -216,6 +216,9 @@ describe('AudioEngine sequence playback', () => {
       endUnitOffset: 32,
       elementaryUnitsPerTempoBeat: 4,
       loop: false,
+      repeatMode: 'none',
+      interCyclePauseSeconds: 0,
+      tempoProgression: null,
     }
 
     await engine.startSequence(timeline, 120)
@@ -275,7 +278,7 @@ describe('AudioEngine sequence playback', () => {
     assert.equal(context.oscillators[1].connections[0].gain.events[1].value, 10)
   })
 
-  it('starts the repeated range without repeating the count-in or bursting missed clicks', async (t) => {
+  it('repeats the count-in at the start of every cycle without bursting missed clicks', async (t) => {
     const timeline = buildPlaybackTimeline(score, {
       startMeasure: 1,
       endMeasure: 1,
@@ -292,12 +295,93 @@ describe('AudioEngine sequence playback', () => {
     context.currentTime = 3
     engine.schedule()
 
-    const lastClick = context.oscillators.at(-1)
-    assert.ok(lastClick)
-    assert.ok(Math.abs(lastClick.startTime - 3.05) < 1e-9)
-    assert.equal(lastClick.frequency.events[0].value, 2400)
+    const nextCycleCountIn = context.oscillators.at(-1)
+    assert.ok(nextCycleCountIn)
+    assert.ok(Math.abs(nextCycleCountIn.startTime - 3.05) < 1e-9)
+    assert.equal(nextCycleCountIn.frequency.events[0].value, 1800)
 
     engine.stop()
+  })
+
+  it('pauses two seconds between cycles and counts in again after the pause', async (t) => {
+    const timeline = buildPlaybackTimeline(score, {
+      startMeasure: 1,
+      endMeasure: 1,
+      countInPulses: 1,
+      repeatMode: 'pause',
+    })
+    const engine = new AudioEngine()
+
+    await engine.startSequence(timeline, 120)
+    t.after(() => engine.stop())
+    const context = FakeAudioContext.latest
+
+    context.currentTime = 4.5
+    engine.schedule()
+
+    const nextCountIn = context.oscillators.at(-1)
+    assert.ok(nextCountIn)
+    assert.ok(Math.abs(nextCountIn.startTime - 4.55) < 1e-9)
+    assert.equal(nextCountIn.frequency.events[0].value, 1800)
+    assert.equal(timeline.interCyclePauseSeconds, 2)
+
+    engine.stop()
+    const countAfterStop = context.oscillators.length
+    context.currentTime = 8
+    engine.schedule()
+    assert.equal(context.oscillators.length, countAfterStop)
+  })
+
+  it('changes tempo between cycles and stops after the final tempo cycle', async (t) => {
+    const timeline = buildPlaybackTimeline(score, {
+      startMeasure: 1,
+      endMeasure: 1,
+      countInPulses: 1,
+      repeatMode: 'tempo-progression',
+      tempoProgression: { startTempo: 120, endTempo: 60, increment: 60 },
+    })
+    const engine = new AudioEngine()
+    const tempoChanges = []
+
+    await engine.startSequence(
+      timeline,
+      120,
+      undefined,
+      undefined,
+      (nextTempo) => tempoChanges.push(nextTempo),
+    )
+    t.after(() => engine.stop())
+    const context = FakeAudioContext.latest
+
+    context.currentTime = 4.5
+    engine.schedule()
+
+    const secondCycleCountIn = context.oscillators.at(-1)
+    assert.ok(secondCycleCountIn)
+    assert.ok(Math.abs(secondCycleCountIn.startTime - 4.55) < 1e-9)
+    assert.deepEqual(tempoChanges, [60])
+
+    context.currentTime = 5.5
+    engine.schedule()
+    const secondCycleMeasure = context.oscillators.at(-1)
+    assert.ok(secondCycleMeasure)
+    assert.ok(Math.abs(secondCycleMeasure.startTime - 5.55) < 1e-9)
+    assert.equal(secondCycleMeasure.frequency.events[0].value, 2400)
+
+    context.currentTime = 6.5
+    engine.schedule()
+    const secondCycleGroup = context.oscillators.at(-1)
+    assert.ok(secondCycleGroup)
+    assert.ok(Math.abs(secondCycleGroup.startTime - 6.55) < 1e-9)
+
+    context.currentTime = 9.55
+    engine.schedule()
+    assert.deepEqual(tempoChanges, [60])
+
+    const oscillatorCountAfterCompletion = context.oscillators.length
+    context.currentTime = 12
+    engine.schedule()
+    assert.equal(context.oscillators.length, oscillatorCountAfterCompletion)
   })
 
   it('cancels future clicks immediately on stop', async (t) => {

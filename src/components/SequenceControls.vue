@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { MAX_COUNT_IN_PULSES } from '../music/playbackTimeline'
+import type { SequenceRepeatMode } from '../music/playbackTimeline'
 import type { SequenceCatalogEntry } from '../music/sequenceCatalog'
+import { MAX_TEMPO_BPM, MIN_TEMPO_BPM } from '../tempo'
 
 defineProps<{
   catalog: readonly SequenceCatalogEntry[]
@@ -10,7 +12,10 @@ defineProps<{
   startMeasure: number
   endMeasure: number
   countInPulses: number
-  loop: boolean
+  repeatMode: SequenceRepeatMode
+  progressionStartTempo: number
+  progressionEndTempo: number
+  progressionIncrement: number
   disabled: boolean
 }>()
 
@@ -19,7 +24,10 @@ const emit = defineEmits<{
   'update:startMeasure': [measure: number]
   'update:endMeasure': [measure: number]
   'update:countInPulses': [pulses: number]
-  'update:loop': [loop: boolean]
+  'update:repeatMode': [mode: SequenceRepeatMode]
+  'update:progressionStartTempo': [tempo: number]
+  'update:progressionEndTempo': [tempo: number]
+  'update:progressionIncrement': [increment: number]
 }>()
 
 function readNumber(event: Event): number | null {
@@ -56,10 +64,28 @@ function updateCountIn(event: Event) {
   }
 }
 
-function updateLoop(event: Event) {
+function updateRepeatMode(event: Event) {
   const input = event.currentTarget
-  if (input instanceof HTMLInputElement) {
-    emit('update:loop', input.checked)
+  if (!(input instanceof HTMLSelectElement)) {
+    return
+  }
+
+  switch (input.value) {
+    case 'none':
+    case 'continuous':
+    case 'pause':
+    case 'tempo-progression':
+      emit('update:repeatMode', input.value)
+  }
+}
+
+function updateProgressionValue(
+  event: Event,
+  emitUpdate: (value: number) => void,
+) {
+  const value = readNumber(event)
+  if (value !== null) {
+    emitUpdate(value)
   }
 }
 
@@ -113,7 +139,7 @@ function selectSequence(event: Event) {
         />
       </label>
       <label class="number-field">
-        <span class="field-label">Décompte (pulses)</span>
+        <span class="field-label">Décompte (pulses / cycle)</span>
         <input
           type="number"
           min="0"
@@ -124,14 +150,57 @@ function selectSequence(event: Event) {
           @input="updateCountIn"
         />
       </label>
-      <label class="loop-field">
-        <input
-          type="checkbox"
-          :checked="loop"
+      <label class="number-field">
+        <span class="field-label">Répétition</span>
+        <select
+          class="sequence-select"
+          :value="repeatMode"
           :disabled="disabled"
-          @change="updateLoop"
+          @change="updateRepeatMode"
+        >
+          <option value="none">Aucune</option>
+          <option value="continuous">Boucle continue</option>
+          <option value="pause">Boucle — pause 2 s</option>
+          <option value="tempo-progression">Progression de tempo</option>
+        </select>
+      </label>
+    </div>
+    <div v-if="repeatMode === 'tempo-progression'" class="playback-options">
+      <label class="number-field">
+        <span class="field-label">Départ (BPM)</span>
+        <input
+          type="number"
+          :min="MIN_TEMPO_BPM"
+          :max="MAX_TEMPO_BPM"
+          step="1"
+          :value="progressionStartTempo"
+          :disabled="disabled"
+          @input="updateProgressionValue($event, (value) => emit('update:progressionStartTempo', value))"
         />
-        <span>Boucle</span>
+      </label>
+      <label class="number-field">
+        <span class="field-label">Fin (BPM)</span>
+        <input
+          type="number"
+          :min="MIN_TEMPO_BPM"
+          :max="MAX_TEMPO_BPM"
+          step="1"
+          :value="progressionEndTempo"
+          :disabled="disabled"
+          @input="updateProgressionValue($event, (value) => emit('update:progressionEndTempo', value))"
+        />
+      </label>
+      <label class="number-field">
+        <span class="field-label">Pas (BPM)</span>
+        <input
+          type="number"
+          min="1"
+          :max="MAX_TEMPO_BPM - MIN_TEMPO_BPM"
+          step="1"
+          :value="progressionIncrement"
+          :disabled="disabled"
+          @input="updateProgressionValue($event, (value) => emit('update:progressionIncrement', value))"
+        />
       </label>
     </div>
   </section>

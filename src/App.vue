@@ -15,6 +15,7 @@ import Transport from './components/Transport.vue'
 import {
   buildPlaybackTimeline,
   MAX_COUNT_IN_PULSES,
+  type SequenceRepeatMode,
   type PlaybackTimelineEvent,
 } from './music/playbackTimeline'
 import {
@@ -23,7 +24,11 @@ import {
 } from './music/sequenceCatalog'
 import type { ParsedScore } from './music/score'
 import { registerOfflineSupport } from './offline/registerOfflineSupport'
-import { nearestMechanicalTempo } from './tempo'
+import {
+  MAX_TEMPO_BPM,
+  MIN_TEMPO_BPM,
+  nearestMechanicalTempo,
+} from './tempo'
 
 type PlaybackMode = 'pulse' | 'sequence'
 type TempoAdjustmentMode = 'standard' | 'mechanical'
@@ -48,7 +53,10 @@ const defaultEndMeasure =
 const startMeasure = ref(defaultStartMeasure)
 const endMeasure = ref(defaultEndMeasure)
 const countInPulses = ref(4)
-const loop = ref(false)
+const repeatMode = ref<SequenceRepeatMode>('none')
+const progressionStartTempo = ref(defaultSequence.score.tempo)
+const progressionEndTempo = ref(defaultSequence.score.tempo)
+const progressionIncrement = ref(5)
 const isRunning = ref(false)
 const isStarting = ref(false)
 const isInterrupted = ref(false)
@@ -89,6 +97,11 @@ audioEngine.setContextStateHandler((state) => {
 })
 
 const firstMeasureNumber = computed(() => score.value?.measures[0]?.number ?? 1)
+const isTempoLocked = computed(
+  () =>
+    (isRunning.value || isStarting.value) &&
+    repeatMode.value === 'tempo-progression',
+)
 const lastMeasureNumber = computed(() => {
   const measures = score.value?.measures
   return measures?.[measures.length - 1]?.number ?? 0
@@ -108,7 +121,17 @@ const canStart = computed(() => {
     endMeasure.value <= lastMeasureNumber.value &&
     Number.isInteger(countInPulses.value) &&
     countInPulses.value >= 0 &&
-    countInPulses.value <= MAX_COUNT_IN_PULSES
+    countInPulses.value <= MAX_COUNT_IN_PULSES &&
+    (repeatMode.value !== 'tempo-progression' ||
+      (Number.isSafeInteger(progressionStartTempo.value) &&
+        progressionStartTempo.value >= MIN_TEMPO_BPM &&
+        progressionStartTempo.value <= MAX_TEMPO_BPM &&
+        Number.isSafeInteger(progressionEndTempo.value) &&
+        progressionEndTempo.value >= MIN_TEMPO_BPM &&
+        progressionEndTempo.value <= MAX_TEMPO_BPM &&
+        Number.isSafeInteger(progressionIncrement.value) &&
+        progressionIncrement.value > 0 &&
+        progressionIncrement.value <= MAX_TEMPO_BPM - MIN_TEMPO_BPM))
   )
 })
 const currentMeasureInfo = computed(() => {
@@ -136,6 +159,14 @@ function cycleClickSkipProbability() {
   const nextProbability = nextClickSkipProbability(clickSkipProbability.value)
   audioEngine.setClickSkipProbability(nextProbability)
   clickSkipProbability.value = nextProbability
+}
+
+function updateRepeatMode(nextMode: SequenceRepeatMode) {
+  if (nextMode === 'tempo-progression') {
+    progressionStartTempo.value = tempo.value
+    progressionEndTempo.value = tempo.value
+  }
+  repeatMode.value = nextMode
 }
 
 const screenWakeLockMessage = computed(() => {
@@ -196,12 +227,15 @@ function selectSequence(id: string) {
   endMeasure.value =
     selectedMeasures[selectedMeasures.length - 1]?.number ?? startMeasure.value
   countInPulses.value = 4
-  loop.value = false
+  repeatMode.value = 'none'
   updateTempo(
     tempoAdjustmentMode.value === 'mechanical'
       ? nearestMechanicalTempo(selected.score.tempo)
       : selected.score.tempo,
   )
+  progressionStartTempo.value = tempo.value
+  progressionEndTempo.value = tempo.value
+  progressionIncrement.value = 5
   errorMessage.value = ''
   clearPlaybackStatus()
 }
@@ -259,11 +293,23 @@ async function start() {
     if (mode.value === 'pulse') {
       await audioEngine.start(tempo.value)
     } else if (parsedScore) {
+      const progressionSettings =
+        repeatMode.value === 'tempo-progression'
+          ? {
+              startTempo: progressionStartTempo.value,
+              endTempo: progressionEndTempo.value,
+              increment: progressionIncrement.value,
+            }
+          : undefined
+      if (progressionSettings) {
+        updateTempo(progressionSettings.startTempo)
+      }
       const timeline = buildPlaybackTimeline(parsedScore, {
         startMeasure: startMeasure.value,
         endMeasure: endMeasure.value,
         countInPulses: countInPulses.value,
-        loop: loop.value,
+        repeatMode: repeatMode.value,
+        tempoProgression: progressionSettings,
       })
 
       await audioEngine.startSequence(
@@ -276,6 +322,11 @@ async function start() {
             isInterrupted.value = false
             isCompleted.value = true
             void screenWakeLock.release()
+          }
+        },
+        (nextTempo) => {
+          if (request === transportRequest) {
+            tempo.value = nextTempo
           }
         },
       )
@@ -427,18 +478,25 @@ onBeforeUnmount(() => {
       :start-measure="startMeasure"
       :end-measure="endMeasure"
       :count-in-pulses="countInPulses"
-      :loop="loop"
+      :repeat-mode="repeatMode"
+      :progression-start-tempo="progressionStartTempo"
+      :progression-end-tempo="progressionEndTempo"
+      :progression-increment="progressionIncrement"
       :disabled="isRunning || isStarting"
       @sequence-selected="selectSequence"
       @update:start-measure="startMeasure = $event"
       @update:end-measure="endMeasure = $event"
       @update:count-in-pulses="countInPulses = $event"
-      @update:loop="loop = $event"
+      @update:repeat-mode="updateRepeatMode"
+      @update:progression-start-tempo="progressionStartTempo = $event"
+      @update:progression-end-tempo="progressionEndTempo = $event"
+      @update:progression-increment="progressionIncrement = $event"
     />
 
     <TempoControl
       :tempo="tempo"
       :mode="tempoAdjustmentMode"
+      :disabled="isTempoLocked"
       @change="updateTempo"
     />
     <button
@@ -512,6 +570,7 @@ onBeforeUnmount(() => {
       <button
         class="tempo-mode-toggle"
         type="button"
+        :disabled="isTempoLocked"
         :aria-pressed="tempoAdjustmentMode === 'mechanical'"
         aria-label="Basculer le mode de réglage du tempo"
         @click="toggleTempoAdjustmentMode"

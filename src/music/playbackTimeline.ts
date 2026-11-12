@@ -1,12 +1,28 @@
 import type { ExpandedMeasure, ParsedScore } from './score'
+import { MAX_TEMPO_BPM, MIN_TEMPO_BPM } from '../tempo.ts'
 
 export const MAX_COUNT_IN_PULSES = 32
+export const INTER_CYCLE_PAUSE_SECONDS = 2
+
+export type SequenceRepeatMode =
+  | 'none'
+  | 'continuous'
+  | 'pause'
+  | 'tempo-progression'
+
+export interface TempoProgressionOptions {
+  startTempo: number
+  endTempo: number
+  increment: number
+}
 
 export interface PlaybackRangeOptions {
   startMeasure: number
   endMeasure: number
   countInPulses: number
-  loop: boolean
+  loop?: boolean
+  repeatMode?: SequenceRepeatMode
+  tempoProgression?: TempoProgressionOptions
 }
 
 export interface CountInEvent {
@@ -37,6 +53,9 @@ export interface PlaybackTimeline {
   endUnitOffset: number
   elementaryUnitsPerTempoBeat: number
   loop: boolean
+  repeatMode: SequenceRepeatMode
+  interCyclePauseSeconds: number
+  tempoProgression: number[] | null
 }
 
 export class PlaybackRangeError extends Error {
@@ -51,6 +70,11 @@ export function buildPlaybackTimeline(
   options: PlaybackRangeOptions,
 ): PlaybackTimeline {
   const { startMeasure, endMeasure, countInPulses, loop } = options
+  const repeatMode = options.repeatMode ?? (loop ? 'continuous' : 'none')
+  const tempoProgression =
+    repeatMode === 'tempo-progression'
+      ? buildTempoProgression(options.tempoProgression)
+      : null
 
   if (!Number.isInteger(startMeasure) || !Number.isInteger(endMeasure)) {
     throw new PlaybackRangeError('Measure bounds must be integers.')
@@ -125,6 +149,56 @@ export function buildPlaybackTimeline(
     loopLengthUnits,
     endUnitOffset: countInUnits + loopLengthUnits,
     elementaryUnitsPerTempoBeat,
-    loop,
+    loop: repeatMode !== 'none',
+    repeatMode,
+    interCyclePauseSeconds:
+      repeatMode === 'pause' || repeatMode === 'tempo-progression'
+        ? INTER_CYCLE_PAUSE_SECONDS
+        : 0,
+    tempoProgression,
   }
+}
+
+export function buildTempoProgression(
+  options: TempoProgressionOptions | undefined,
+): number[] {
+  if (!options) {
+    throw new PlaybackRangeError('Tempo progression settings are required.')
+  }
+
+  const { startTempo, endTempo, increment } = options
+  if (
+    !Number.isSafeInteger(startTempo) ||
+    startTempo < MIN_TEMPO_BPM ||
+    startTempo > MAX_TEMPO_BPM ||
+    !Number.isSafeInteger(endTempo) ||
+    endTempo < MIN_TEMPO_BPM ||
+    endTempo > MAX_TEMPO_BPM ||
+    !Number.isSafeInteger(increment) ||
+    increment < 1 ||
+    increment > MAX_TEMPO_BPM - MIN_TEMPO_BPM
+  ) {
+    throw new PlaybackRangeError(
+      `Tempo progression must use integer tempos between ${MIN_TEMPO_BPM} and ${MAX_TEMPO_BPM} BPM and a positive integer increment.`,
+    )
+  }
+
+  if (startTempo === endTempo) {
+    return [startTempo]
+  }
+
+  const direction = endTempo > startTempo ? 1 : -1
+  const progression: number[] = []
+  for (let tempo = startTempo; ; tempo += direction * increment) {
+    if (
+      (direction > 0 && tempo >= endTempo) ||
+      (direction < 0 && tempo <= endTempo)
+    ) {
+      progression.push(endTempo)
+      break
+    }
+    progression.push(tempo)
+  }
+
+  return progression
 }

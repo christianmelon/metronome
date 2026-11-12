@@ -34,10 +34,9 @@ type PendingProgressEvent = {
 type SequencePlayback = {
   kind: 'sequence'
   timeline: PlaybackTimeline
-  baseTime: number
-  initialIndex: number
-  loopIndex: number
-  loopIteration: number
+  cycleStartTime: number
+  cycleIndex: number
+  eventIndex: number
   lastScheduledTime: number | null
   lastScheduledUnitOffset: number | null
   musicalClicksScheduled: number
@@ -45,6 +44,7 @@ type SequencePlayback = {
   progressIndex: number
   onProgress?: (event: PlaybackTimelineEvent) => void
   onComplete?: () => void
+  onTempoChange?: (tempo: number) => void
 }
 
 type ActivePlayback = PulsePlayback | SequencePlayback
@@ -106,6 +106,7 @@ export class AudioEngine {
     tempo: number,
     onProgress?: (event: PlaybackTimelineEvent) => void,
     onComplete?: () => void,
+    onTempoChange?: (tempo: number) => void,
   ): Promise<void> {
     if (this.running || this.startPromise) {
       throw new Error('Stop the current playback before starting a sequence.')
@@ -115,10 +116,9 @@ export class AudioEngine {
     await this.beginPlayback((startTime) => ({
       kind: 'sequence',
       timeline,
-      baseTime: startTime,
-      initialIndex: 0,
-      loopIndex: 0,
-      loopIteration: 1,
+      cycleStartTime: startTime,
+      cycleIndex: 0,
+      eventIndex: 0,
       lastScheduledTime: null,
       lastScheduledUnitOffset: null,
       musicalClicksScheduled: 0,
@@ -126,6 +126,7 @@ export class AudioEngine {
       progressIndex: 0,
       onProgress,
       onComplete,
+      onTempoChange,
     }))
   }
 
@@ -223,7 +224,7 @@ export class AudioEngine {
       this.playback.lastScheduledTime !== null &&
       this.playback.lastScheduledUnitOffset !== null
     ) {
-      this.playback.baseTime =
+      this.playback.cycleStartTime =
         this.playback.lastScheduledTime -
         this.playback.lastScheduledUnitOffset * this.secondsPerElementaryUnit(
           this.playback.timeline,
@@ -367,88 +368,73 @@ export class AudioEngine {
 
   private scheduleSequence(playback: SequencePlayback, now: number): void {
     while (true) {
-      const next = this.nextSequenceEvent(playback)
-      if (!next) {
-        break
+      const event = playback.timeline.initialEvents[playback.eventIndex]
+      if (!event) {
+        const cycleEndTime =
+          playback.cycleStartTime +
+          playback.timeline.endUnitOffset *
+            this.secondsPerElementaryUnit(playback.timeline)
+        const isFinalCycle =
+          playback.timeline.repeatMode === 'none' ||
+          (playback.timeline.tempoProgression !== null &&
+            playback.cycleIndex >= playback.timeline.tempoProgression.length - 1)
+        if (isFinalCycle) {
+          if (now >= cycleEndTime) {
+            this.finishSequence(playback)
+          }
+          break
+        }
+
+        const nextCycleStartTime =
+          cycleEndTime + playback.timeline.interCyclePauseSeconds
+        if (nextCycleStartTime >= now + SCHEDULE_AHEAD_TIME) {
+          break
+        }
+
+        playback.cycleIndex += 1
+        playback.eventIndex = 0
+        playback.cycleStartTime = nextCycleStartTime
+        playback.lastScheduledTime = null
+        playback.lastScheduledUnitOffset = null
+        const progression = playback.timeline.tempoProgression
+        if (progression) {
+          const nextTempo = progression[playback.cycleIndex]
+          if (nextTempo !== undefined) {
+            this.tempo = nextTempo
+            playback.onTempoChange?.(nextTempo)
+          }
+        }
+        continue
       }
 
       const eventTime =
-        playback.baseTime +
-        next.unitOffset * this.secondsPerElementaryUnit(playback.timeline)
+        playback.cycleStartTime +
+        event.unitOffset * this.secondsPerElementaryUnit(playback.timeline)
       if (eventTime >= now + SCHEDULE_AHEAD_TIME) {
         break
       }
 
       if (eventTime >= now) {
         if (
-          next.event.kind === 'count-in' ||
+          event.kind === 'count-in' ||
           this.shouldPlayMusicalClick(playback.musicalClicksScheduled)
         ) {
-          this.scheduleClick(eventTime, this.clickKind(next.event))
+          this.scheduleClick(eventTime, this.clickKind(event))
         }
-        if (next.event.kind !== 'count-in') {
+        if (event.kind !== 'count-in') {
           playback.musicalClicksScheduled += 1
         }
       }
       playback.progressEvents.push({
         time: Math.max(now, eventTime),
-        event: next.event,
+        event,
       })
       playback.lastScheduledTime = eventTime
-      playback.lastScheduledUnitOffset = next.unitOffset
-      this.advanceSequenceEvent(playback)
+      playback.lastScheduledUnitOffset = event.unitOffset
+      playback.eventIndex += 1
     }
 
     this.dispatchProgress(playback, now)
-
-    if (
-      !playback.timeline.loop &&
-      now >=
-        playback.baseTime +
-          playback.timeline.endUnitOffset *
-            this.secondsPerElementaryUnit(playback.timeline)
-    ) {
-      this.finishSequence(playback)
-    }
-  }
-
-  private nextSequenceEvent(
-    playback: SequencePlayback,
-  ): { event: PlaybackTimelineEvent; unitOffset: number } | null {
-    const initialEvent = playback.timeline.initialEvents[playback.initialIndex]
-    if (initialEvent) {
-      return { event: initialEvent, unitOffset: initialEvent.unitOffset }
-    }
-
-    if (!playback.timeline.loop) {
-      return null
-    }
-
-    const loopEvent = playback.timeline.loopEvents[playback.loopIndex]
-    if (!loopEvent) {
-      return null
-    }
-
-    return {
-      event: loopEvent,
-      unitOffset:
-        playback.timeline.countInUnits +
-        playback.loopIteration * playback.timeline.loopLengthUnits +
-        loopEvent.unitOffset,
-    }
-  }
-
-  private advanceSequenceEvent(playback: SequencePlayback): void {
-    if (playback.initialIndex < playback.timeline.initialEvents.length) {
-      playback.initialIndex += 1
-      return
-    }
-
-    playback.loopIndex += 1
-    if (playback.loopIndex >= playback.timeline.loopEvents.length) {
-      playback.loopIndex = 0
-      playback.loopIteration += 1
-    }
   }
 
   private dispatchProgress(playback: SequencePlayback, now: number): void {

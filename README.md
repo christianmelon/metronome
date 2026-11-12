@@ -82,7 +82,7 @@ Le workflow `.github/workflows/deploy.yml` exécute les tests et le build sur ch
 
 ## Lecture des séquences
 
-Dans **Séquences**, choisis une entrée de la liste intégrée, puis ajuste la plage de mesures, le décompte ou la boucle. Redline couvre les mesures 105 à 120 avec plusieurs métriques. Le décompte n’est joué qu’au démarrage, pas à chaque boucle.
+Dans **Séquences**, choisis une entrée de la liste intégrée, puis ajuste la plage de mesures et le décompte. Le menu **Répétition** propose une lecture unique, une boucle continue, une boucle avec deux secondes de pause ou une progression de tempo. Le décompte est joué au début de chaque cycle. La progression répète la plage entière, augmente ou diminue le tempo à chaque cycle, insère deux secondes de pause et s’arrête après le passage au tempo final. Si l’incrément ne tombe pas exactement sur le tempo final, le dernier pas est raccourci pour l’atteindre.
 
 Les débuts de mesure utilisent un bip plus aigu et plus long; les débuts de groupe utilisent le timbre de base. Les subdivisions ne sont pas jouées. Le tempo peut être modifié pendant la lecture; les sons déjà programmés finissent avant que le nouvel intervalle ne s'applique.
 

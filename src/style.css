@@ -123,8 +123,7 @@ h1 {
 }
 
 .sequence-select:disabled,
-.number-field input:disabled,
-.loop-field input:disabled {
+.number-field input:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -153,21 +152,6 @@ h1 {
   background: #111827;
   font: inherit;
   font-variant-numeric: tabular-nums;
-}
-
-.loop-field {
-  display: flex;
-  min-height: 41px;
-  align-items: center;
-  gap: 8px;
-  color: #d1d5db;
-  font-size: 0.85rem;
-}
-
-.loop-field input {
-  width: 18px;
-  height: 18px;
-  accent-color: #059669;
 }
 
 .tempo-control {
