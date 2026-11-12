@@ -20,9 +20,9 @@ Le navigateur doit autoriser l’audio. Appuyer sur **START** active ou reprend 
 ## Modes de lecture
 
 - **Pulse** : pulse régulière de 30 à 300 BPM, avec changement de tempo pendant la lecture.
-- **Séquences** : choix d’une séquence prédéfinie, sélection de la plage de mesures, décompte, accents de mesure et de groupe, boucle et tempo modifiable.
+- **Séquences** : lecture de Redline, sélection de la plage de mesures, décompte, accents de mesure et de groupe, boucle et tempo modifiable.
 
-Les partitions disponibles sont des JSON versionnés dans `examples/` et importés dans le bundle de l’application. Pour ajouter une entrée, ajouter son JSON puis l’enregistrer dans `src/music/sequenceCatalog.ts`. Il n’y a aucun chargement distant ni sélecteur de fichiers.
+La liste contient actuellement uniquement la partition Redline (`examples/Redline_tangp.json`). Pour ajouter une entrée, ajouter son JSON puis l’enregistrer dans `src/music/sequenceCatalog.ts`. Il n’y a aucun chargement distant ni sélecteur de fichiers.
 
 Un appui court sur **+** ou **−** modifie le tempo d’1 BPM. Maintenir le bouton déclenche une répétition après 400 ms; le pas passe à 5 BPM après 1,5 seconde. La répétition s’arrête au relâchement et reste limitée à 30–300 BPM.
 
@@ -55,7 +55,7 @@ Le build valide TypeScript et la compilation Vite, mais ne mesure pas la régula
 
 Le contrat JSON est défini dans `src/music/score.schema.json`. Un document contient le tempo, le mapping explicite BPM/unité élémentaire et des plages de mesures avec leur métrique. Les groupes sont facultatifs uniquement pour les métriques ayant des valeurs par défaut dans `SPECS.md`; sinon, ils doivent être fournis.
 
-`parseScoreJson` et `parseScore` dans `src/music/score.ts` valident le document et développent les plages en mesures contiguës à partir de 1. Le résultat inclut le détail des mesures et une séquence ordonnée d’événements, un par unité élémentaire, marquant les débuts de groupe. Cette phase fournit le modèle de données seulement : aucun chargement JSON dans l’interface et aucune lecture musicale ne sont ajoutés.
+`parseScoreJson` et `parseScore` dans `src/music/score.ts` valident le document et développent les plages en mesures contiguës. La première plage peut commencer à n’importe quel numéro positif; les plages suivantes doivent continuer sans saut (par exemple `105-106`, puis `107-108`). Le résultat inclut le détail des mesures et une séquence ordonnée d’événements, un par unité élémentaire, marquant les débuts de groupe. Cette phase fournit le modèle de données seulement : aucun chargement JSON dans l’interface et aucune lecture musicale ne sont ajoutés.
 
 Exécuter les tests du modèle avec :
 
@@ -82,7 +82,7 @@ Le workflow `.github/workflows/deploy.yml` exécute les tests et le build sur ch
 
 ## Lecture des séquences
 
-Dans **Séquences**, choisis une entrée de la liste intégrée, puis ajuste la plage de mesures, le décompte ou la boucle. Le décompte n’est joué qu’au démarrage, pas à chaque boucle.
+Dans **Séquences**, choisis une entrée de la liste intégrée, puis ajuste la plage de mesures, le décompte ou la boucle. Redline couvre les mesures 105 à 120 avec plusieurs métriques. Le décompte n’est joué qu’au démarrage, pas à chaque boucle.
 
 Les débuts de mesure utilisent un bip plus aigu et plus long; les débuts de groupe utilisent le timbre de base. Les subdivisions ne sont pas jouées. Le tempo peut être modifié pendant la lecture; les sons déjà programmés finissent avant que le nouvel intervalle ne s'applique.
 

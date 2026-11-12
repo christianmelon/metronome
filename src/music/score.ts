@@ -120,7 +120,7 @@ export function parseScore(value: unknown): ParsedScore {
 
   const measures: ExpandedMeasure[] = []
   const events: RhythmicUnitEvent[] = []
-  let nextMeasureNumber = 1
+  let nextMeasureNumber: number | null = null
   let totalElementaryUnits = 0
 
   for (const [segmentIndex, rawSegment] of score.sequence.entries()) {
@@ -129,7 +129,7 @@ export function parseScore(value: unknown): ParsedScore {
     assertOnlyKeys(segment, ['measures', 'meter', 'groups'], path)
 
     const range = parseMeasureRange(segment.measures, `${path}.measures`)
-    if (range.start !== nextMeasureNumber) {
+    if (nextMeasureNumber !== null && range.start !== nextMeasureNumber) {
       fail(
         `${path}.measures`,
         `must continue the sequence at measure ${nextMeasureNumber}`,

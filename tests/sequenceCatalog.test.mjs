@@ -2,11 +2,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 import { parseScoreJson } from '../src/music/score.ts'
+import { SEQUENCE_CATALOG } from '../src/music/sequenceCatalog.ts'
 
 const catalogFiles = [
-  ['examples/test-lecture.json', 132],
-  ['examples/steady-4-4.json', 120],
-  ['examples/grouped-5-8.json', 120],
+  ['examples/Redline_tangp.json', 80],
 ]
 
 describe('predefined sequence documents', () => {
@@ -19,9 +18,41 @@ describe('predefined sequence documents', () => {
     })
   }
 
-  it('keeps the 5/8 preset grouped as two plus three eighth notes', () => {
-    const score = parseScoreJson(readFileSync('examples/grouped-5-8.json', 'utf8'))
+  it('offers Redline as the only sequence and makes it the default', () => {
+    assert.deepEqual(
+      SEQUENCE_CATALOG.map(({ id }) => id),
+      ['redline-tango'],
+    )
+    assert.equal(SEQUENCE_CATALOG[0]?.title, 'Redline Tango')
+  })
 
-    assert.deepEqual(score.measures[0].groups, [4, 6])
+  it('keeps Redline measures 105-120 with the requested meters and groupings', () => {
+    const score = parseScoreJson(readFileSync('examples/Redline_tangp.json', 'utf8'))
+
+    assert.deepEqual(
+      score.measures.map(({ number, meter, groups }) => [
+        number,
+        meter.notation,
+        groups,
+      ]),
+      [
+        [105, '5/8', [6, 4]],
+        [106, '3/4', [4, 4, 4]],
+        [107, '5/8', [6, 4]],
+        [108, '4/4', [4, 4, 4, 4]],
+        [109, '5/8', [6, 4]],
+        [110, '3/4', [4, 4, 4]],
+        [111, '3/8', [2, 2, 2]],
+        [112, '5/8', [6, 4]],
+        [113, '6/8', [6, 6]],
+        [114, '6/8', [6, 6]],
+        [115, '5/8', [6, 4]],
+        [116, '3/4', [4, 4, 4]],
+        [117, '3/8', [2, 2, 2]],
+        [118, '5/8', [6, 4]],
+        [119, '6/8', [6, 6]],
+        [120, '6/8', [6, 6]],
+      ],
+    )
   })
 })

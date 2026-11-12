@@ -5,7 +5,8 @@ import type { SequenceCatalogEntry } from '../music/sequenceCatalog'
 defineProps<{
   catalog: readonly SequenceCatalogEntry[]
   selectedSequenceId: string
-  measureCount: number
+  minimumMeasure: number
+  maximumMeasure: number
   startMeasure: number
   endMeasure: number
   countInPulses: number
@@ -81,7 +82,7 @@ function selectSequence(event: Event) {
         @change="selectSequence"
       >
         <option v-for="sequence in catalog" :key="sequence.id" :value="sequence.id">
-          {{ sequence.title }} — {{ sequence.description }}
+          {{ sequence.title }}
         </option>
       </select>
     </label>
@@ -91,8 +92,8 @@ function selectSequence(event: Event) {
         <span class="field-label">Mesure de début</span>
         <input
           type="number"
-          min="1"
-          :max="measureCount"
+          :min="minimumMeasure"
+          :max="maximumMeasure"
           step="1"
           :value="startMeasure"
           :disabled="disabled"
@@ -103,8 +104,8 @@ function selectSequence(event: Event) {
         <span class="field-label">Mesure de fin</span>
         <input
           type="number"
-          min="1"
-          :max="measureCount"
+          :min="minimumMeasure"
+          :max="maximumMeasure"
           step="1"
           :value="endMeasure"
           :disabled="disabled"

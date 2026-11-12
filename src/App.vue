@@ -41,8 +41,12 @@ const tempo = ref(132)
 const clickSkipProbability = ref(0)
 const score = shallowRef<ParsedScore | null>(defaultSequence.score)
 const selectedSequenceId = ref(defaultSequence.id)
-const startMeasure = ref(1)
-const endMeasure = ref(defaultSequence.score.measures.length)
+const defaultStartMeasure = defaultSequence.score.measures[0]?.number ?? 1
+const defaultMeasures = defaultSequence.score.measures
+const defaultEndMeasure =
+  defaultMeasures[defaultMeasures.length - 1]?.number ?? defaultStartMeasure
+const startMeasure = ref(defaultStartMeasure)
+const endMeasure = ref(defaultEndMeasure)
 const countInPulses = ref(4)
 const loop = ref(false)
 const isRunning = ref(false)
@@ -84,7 +88,11 @@ audioEngine.setContextStateHandler((state) => {
   }
 })
 
-const measureCount = computed(() => score.value?.measures.length ?? 0)
+const firstMeasureNumber = computed(() => score.value?.measures[0]?.number ?? 1)
+const lastMeasureNumber = computed(() => {
+  const measures = score.value?.measures
+  return measures?.[measures.length - 1]?.number ?? 0
+})
 const canStart = computed(() => {
   if (mode.value === 'pulse') {
     return true
@@ -95,9 +103,9 @@ const canStart = computed(() => {
     parsedScore !== null &&
     Number.isInteger(startMeasure.value) &&
     Number.isInteger(endMeasure.value) &&
-    startMeasure.value >= 1 &&
+    startMeasure.value >= firstMeasureNumber.value &&
     endMeasure.value >= startMeasure.value &&
-    endMeasure.value <= parsedScore.measures.length &&
+    endMeasure.value <= lastMeasureNumber.value &&
     Number.isInteger(countInPulses.value) &&
     countInPulses.value >= 0 &&
     countInPulses.value <= MAX_COUNT_IN_PULSES
@@ -183,8 +191,10 @@ function selectSequence(id: string) {
 
   selectedSequenceId.value = selected.id
   score.value = selected.score
-  startMeasure.value = 1
-  endMeasure.value = selected.score.measures.length
+  startMeasure.value = selected.score.measures[0]?.number ?? 1
+  const selectedMeasures = selected.score.measures
+  endMeasure.value =
+    selectedMeasures[selectedMeasures.length - 1]?.number ?? startMeasure.value
   countInPulses.value = 4
   loop.value = false
   updateTempo(
@@ -412,7 +422,8 @@ onBeforeUnmount(() => {
       v-if="mode === 'sequence'"
       :catalog="SEQUENCE_CATALOG"
       :selected-sequence-id="selectedSequenceId"
-      :measure-count="measureCount"
+      :minimum-measure="firstMeasureNumber"
+      :maximum-measure="lastMeasureNumber"
       :start-measure="startMeasure"
       :end-measure="endMeasure"
       :count-in-pulses="countInPulses"

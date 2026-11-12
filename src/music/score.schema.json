@@ -41,7 +41,7 @@
             "type": "string",
             "maxLength": 13,
             "pattern": "^[1-9][0-9]*(\\s*-\\s*[1-9][0-9]*)?$",
-            "description": "A single measure number or an inclusive range such as 1-4."
+            "description": "A positive measure number or inclusive range such as 105-108; each later sequence range must continue from the previous one."
           },
           "meter": {
             "type": "string",

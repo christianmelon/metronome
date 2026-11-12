@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { describe, it } from 'node:test'
 import { buildPlaybackTimeline, PlaybackRangeError } from '../src/music/playbackTimeline.ts'
-import { parseScore } from '../src/music/score.ts'
+import { parseScore, parseScoreJson } from '../src/music/score.ts'
 
 const score = parseScore({
   tempo: 132,
@@ -59,6 +60,28 @@ describe('buildPlaybackTimeline', () => {
     assert.equal(timeline.initialEvents[0].measureNumber, 2)
     assert.equal(timeline.initialEvents[0].unitOffset, 0)
     assert.equal(timeline.loop, true)
+  })
+
+  it('plays Redline from measure 105 through 120', () => {
+    const redline = parseScoreJson(
+      readFileSync('examples/Redline_tangp.json', 'utf8'),
+    )
+    const timeline = buildPlaybackTimeline(redline, {
+      startMeasure: 105,
+      endMeasure: 120,
+      countInPulses: 0,
+      loop: false,
+    })
+
+    assert.deepEqual(
+      timeline.selectedMeasures.map(({ number }) => number),
+      Array.from({ length: 16 }, (_, index) => 105 + index),
+    )
+    assert.deepEqual(
+      [...new Set(timeline.loopEvents.map(({ measureNumber }) => measureNumber))],
+      Array.from({ length: 16 }, (_, index) => 105 + index),
+    )
+    assert.equal(timeline.loopLengthUnits, 172)
   })
 
   it('rejects reversed, out-of-range, and invalid count-in options', () => {

@@ -104,6 +104,23 @@ describe('parseScoreJson', () => {
     assert.deepEqual(score.measures[0].groups, [4, 4, 4, 4, 4])
   })
 
+  it('accepts a positive starting measure and contiguous later ranges', () => {
+    const score = parseScore({
+      tempo: 120,
+      tempoUnit: { denominator: 4, elementaryUnitsPerTempoBeat: 4 },
+      sequence: [
+        { measures: '105-106', meter: '4/4' },
+        { measures: '107-108', meter: '4/4' },
+      ],
+    })
+
+    assert.deepEqual(score.measures.map(({ number }) => number), [105, 106, 107, 108])
+    assert.deepEqual(
+      [...new Set(score.events.map(({ measureNumber }) => measureNumber))],
+      [105, 106, 107, 108],
+    )
+  })
+
   it('rejects invalid JSON with a useful validation error', () => {
     assert.throws(() => parseScoreJson('{'), {
       name: 'ScoreValidationError',
@@ -117,7 +134,6 @@ describe('parseScoreJson', () => {
       'groups that do not fill a measure',
       { measures: '1', meter: '15/16', groups: [4, 4, 4, 4] },
     ],
-    ['a skipped measure range', { measures: '2', meter: '4/4' }],
     ['a reversed range', { measures: '1-0', meter: '4/4' }],
     [
       'a non-power-of-two denominator',
@@ -131,6 +147,20 @@ describe('parseScoreJson', () => {
       )
     })
   }
+
+  it('rejects a gap after an arbitrary starting measure', () => {
+    assert.throws(
+      () =>
+        parseScore({
+          ...exampleScore,
+          sequence: [
+            { measures: '105-106', meter: '4/4' },
+            { measures: '108', meter: '4/4' },
+          ],
+        }),
+      /must continue the sequence at measure 107/,
+    )
+  })
 
   it('rejects mappings that cannot represent the meter with whole elementary units', () => {
     assert.throws(
