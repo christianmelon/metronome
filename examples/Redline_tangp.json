@@ -5,6 +5,340 @@
     "elementaryUnitsPerTempoBeat": 4
   },
   "sequence": [
+
+    {
+      "measures": "1",
+      "meter": "4/4"
+    },
+    {
+      "measures": "2",
+      "meter": "3/4"
+    },
+    {
+      "measures": "3",
+      "meter": "4/4"
+    },
+    {
+      "measures": "4",
+      "meter": "3/4"
+    },
+    {
+      "measures": "5",
+      "meter": "3/8"
+    },
+    {
+      "measures": "6",
+      "meter": "4/4"
+    },
+    {
+      "measures": "7",
+      "meter": "3/4"
+    },
+    {
+      "measures": "8-10",
+      "meter": "4/4"
+    },
+    {
+      "measures": "11",
+      "meter": "5/4"
+    },
+    {
+      "measures": "12",
+      "meter": "3/4"
+    },
+    {
+      "measures": "13",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "14",
+      "meter": "3/4"
+    },
+    {
+      "measures": "15",
+      "meter": "2/4"
+    },
+    {
+      "measures": "16",
+      "meter": "4/4"
+    },
+    {
+      "measures": "17",
+      "meter": "3/4"
+    },
+    {
+      "measures": "18",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "19-21",
+      "meter": "3/4"
+    },
+    {
+      "measures": "22",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "23",
+      "meter": "3/4"
+    },
+    {
+      "measures": "24-25",
+      "meter": "6/8",
+      "groups": [6, 6]
+    },
+    {
+      "measures": "26",
+      "meter": "7/8",
+      "groups": [6, 4,4]
+    },
+    {
+      "measures": "27-33",
+      "meter": "6/8",
+      "groups": [6, 6]
+    },
+    {
+      "measures": "34",
+      "meter": "7/8",
+      "groups": [4, 4,6]
+    },
+    {
+      "measures": "35-37",
+      "meter": "6/8",
+      "groups": [6, 6]
+    },
+    {
+      "measures": "38",
+      "meter": "7/8",
+      "groups": [4, 4,6]
+    },
+    {
+      "measures": "39-43",
+      "meter": "6/8",
+      "groups": [6, 6]
+    },
+    {
+      "measures": "44-45",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "46-47",
+      "meter": "6/8",
+      "groups": [6, 6]
+    },
+    {
+      "measures": "48",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "49",
+      "meter": "3/4"
+    },
+    {
+      "measures": "50",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "51",
+      "meter": "3/4"
+    },
+    {
+      "measures": "52",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "53",
+      "meter": "3/4"
+    },
+    {
+      "measures": "54",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "55",
+      "meter": "3/4"
+    },
+    {
+      "measures": "56",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "57",
+      "meter": "3/4"
+    },
+    {
+      "measures": "58",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "59",
+      "meter": "3/4"
+    },
+    {
+      "measures": "60",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "61",
+      "meter": "2/4"
+    },
+    {
+      "measures": "62",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "63",
+      "meter": "3/4"
+    },
+    {
+      "measures": "64",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "65",
+      "meter": "3/4"
+    },
+    {
+      "measures": "66",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "67",
+      "meter": "3/4"
+    },
+    {
+      "measures": "68",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "69",
+      "meter": "3/4"
+    },
+    {
+      "measures": "70",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "71",
+      "meter": "3/4"
+    },
+    {
+      "measures": "72",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "73",
+      "meter": "4/4"
+    },
+    {
+      "measures": "74",
+      "meter": "3/4"
+    },
+    {
+      "measures": "75",
+      "meter": "4/4"
+    },
+    {
+      "measures": "76",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "77",
+      "meter": "2/4"
+    },
+    {
+      "measures": "78",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "79",
+      "meter": "7/8",
+      "groups": [4, 4,6]
+    },
+    {
+      "measures": "80",
+      "meter": "4/4"
+    },
+    {
+      "measures": "81",
+      "meter": "3/4"
+    },
+    {
+      "measures": "82",
+      "meter": "4/4"
+    },
+     {
+      "measures": "83",
+      "meter": "3/4"
+    },
+    {
+      "measures": "84",
+      "meter": "3/8"
+    },
+    {
+      "measures": "85-87",
+      "meter": "4/4"
+    },
+    {
+     "measures": "88-89",
+     "meter": "3/4"
+   },
+   {
+     "measures": "90",
+     "meter": "4/4"
+   },
+   {
+    "measures": "91",
+    "meter": "3/4"
+  },
+  {
+    "measures": "92",
+    "meter": "5/8",
+    "groups": [6, 4]
+  },
+  {
+   "measures": "93-96",
+   "meter": "3/4"
+ },
+ {
+   "measures": "97-100",
+   "meter": "6/8",
+   "groups": [6, 6]
+ },
+ {
+   "measures": "101-102",
+   "meter": "5/8",
+   "groups": [6, 4]
+ },
+ {
+   "measures": "103",
+   "meter": "6/8",
+   "groups": [6, 6]
+ },
+ {
+   "measures": "104",
+   "meter": "9/8",
+   "groups": [6, 6, 6]
+ },
     {
       "measures": "105",
       "meter": "5/8",

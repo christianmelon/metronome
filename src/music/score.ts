@@ -8,9 +8,12 @@ const MAX_ELEMENTARY_UNITS_PER_TEMPO_BEAT = 256
 const MAX_NOTE_DENOMINATOR = 64
 
 const DEFAULT_GROUP_COUNTS: Record<string, number> = {
+  '1/4': 1,
+  '2/4': 2,
   '3/4': 3,
   '4/4': 4,
   '5/4': 5,
+  '6/4': 6,
   '3/8': 3,
 }
 
