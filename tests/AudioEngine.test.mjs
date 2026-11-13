@@ -647,6 +647,24 @@ describe('AudioEngine sequence playback', () => {
     assert.equal(FakeAudioContext.latest.oscillators.length, 1)
   })
 
+  it('creates a fresh context and starts playback after explicit closure', async (t) => {
+    const engine = new AudioEngine()
+
+    await engine.start(120)
+    const closedContext = FakeAudioContext.latest
+    await engine.closeContext()
+
+    assert.equal(closedContext.state, 'closed')
+
+    await engine.start(120)
+    t.after(() => engine.stop())
+
+    const freshContext = FakeAudioContext.latest
+    assert.notEqual(freshContext, closedContext)
+    assert.equal(freshContext.state, 'running')
+    assert.equal(freshContext.oscillators.length, 1)
+  })
+
   it('reports the count-in and measure only when their audio time is reached', async (t) => {
     const timeline = buildPlaybackTimeline(score, {
       startMeasure: 1,

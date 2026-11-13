@@ -406,7 +406,7 @@ async function resetAudioContextForTest() {
     } else {
       await audioEngine.closeContext()
       audioContextTestMessage.value =
-        'Contexte fermé. Touchez à nouveau pour créer un contexte neuf et tester le son.'
+        'Contexte fermé. Touchez START pour recréer le contexte et reprendre la séquence, ou ce bouton pour créer un contexte neuf et tester un clic.'
     }
   } catch (error: unknown) {
     errorMessage.value =
