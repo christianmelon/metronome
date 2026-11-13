@@ -104,6 +104,17 @@ describe('parseScoreJson', () => {
     assert.deepEqual(score.measures[0].groups, [4, 4, 4, 4, 4])
   })
 
+  it('uses two quarter-note groups by default for 2/4', () => {
+    const score = parseScore({
+      tempo: 120,
+      tempoUnit: { denominator: 4, elementaryUnitsPerTempoBeat: 4 },
+      sequence: [{ measures: '1', meter: '2/4' }],
+    })
+
+    assert.deepEqual(score.measures[0].groups, [4, 4])
+    assert.equal(score.totalElementaryUnits, 8)
+  })
+
   it('accepts a positive starting measure and contiguous later ranges', () => {
     const score = parseScore({
       tempo: 120,

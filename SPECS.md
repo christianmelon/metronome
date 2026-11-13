@@ -158,7 +158,7 @@ Les groupes par défaut sont fournis par l'application. Il n'est pas nécessaire
 
 `tempoUnit.denominator` indique la valeur de note correspondant au BPM (`4` pour une noire, `8` pour une croche). `elementaryUnitsPerTempoBeat` donne explicitement le nombre d'unités élémentaires dans cette pulse. Le nombre d'unités élémentaires d'une unité de mesure est calculé à partir de ces deux valeurs et du dénominateur de la métrique. Le mapping doit être exact; sinon le document est invalide.
 
-Les plages de mesures sont inclusives, ordonnées et contiguës, en commençant à la mesure 1. Les groupes personnalisés doivent être des entiers positifs dont la somme couvre exactement la mesure. Sans groupes personnalisés, les valeurs par défaut sont disponibles pour `3/4`, `4/4`, `5/4` et `3/8`; toute autre métrique doit définir explicitement ses groupes.
+Les plages de mesures sont inclusives, ordonnées et contiguës, en commençant à la mesure 1. Les groupes personnalisés doivent être des entiers positifs dont la somme couvre exactement la mesure. Sans groupes personnalisés, les valeurs par défaut sont disponibles pour `1/4`, `2/4`, `3/4`, `4/4`, `5/4`, `6/4` et `3/8`; toute autre métrique doit définir explicitement ses groupes.
 
 Le format est décrit par `src/music/score.schema.json` et validé par le parseur TypeScript. Le modèle développé expose une entrée par mesure et une séquence ordonnée d'événements, un par unité élémentaire, avec son numéro de groupe et un indicateur de début de groupe. Le moteur audio et l'application ne chargent pas encore de fichier dans l'interface à cette phase.
 

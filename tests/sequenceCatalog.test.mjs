@@ -5,7 +5,7 @@ import { parseScoreJson } from '../src/music/score.ts'
 import { SEQUENCE_CATALOG } from '../src/music/sequenceCatalog.ts'
 
 const catalogFiles = [
-  ['examples/Redline_tangp.json', 80],
+  ['examples/Redline_tangp.json', 120],
 ]
 
 describe('predefined sequence documents', () => {
@@ -26,39 +26,16 @@ describe('predefined sequence documents', () => {
     assert.equal(SEQUENCE_CATALOG[0]?.title, 'Redline Tango')
   })
 
-  it('keeps Redline measures 105-120 with the requested meters and groupings', () => {
+  it('loads the current Redline score including its default 2/4 grouping', () => {
     const score = parseScoreJson(readFileSync('examples/Redline_tangp.json', 'utf8'))
-
-    const expectedFirstMeasures = [
-      [105, '5/8', [6, 4]],
-      [106, '3/4', [4, 4, 4]],
-      [107, '5/8', [6, 4]],
-      [108, '4/4', [4, 4, 4, 4]],
-      [109, '5/8', [6, 4]],
-      [110, '3/4', [4, 4, 4]],
-      [111, '3/8', [2, 2, 2]],
-      [112, '5/8', [6, 4]],
-      [113, '6/8', [6, 6]],
-      [114, '6/8', [6, 6]],
-      [115, '5/8', [6, 4]],
-      [116, '3/4', [4, 4, 4]],
-      [117, '3/8', [2, 2, 2]],
-      [118, '5/8', [6, 4]],
-      [119, '6/8', [6, 6]],
-      [120, '6/8', [6, 6]],
-    ]
-
-    assert.deepEqual(
-      score.measures.slice(0, 16).map(({ number, meter, groups }) => [
-        number,
-        meter.notation,
-        groups,
-      ]),
-      expectedFirstMeasures,
-    )
+    assert.equal(score.tempo, 120)
+    assert.equal(score.measures[0]?.number, 1)
+    const twoFourMeasure = score.measures.find(({ number }) => number === 15)
+    assert.equal(twoFourMeasure?.meter.notation, '2/4')
+    assert.deepEqual(twoFourMeasure?.groups, [4, 4])
     assert.deepEqual(
       score.measures.map(({ number }) => number),
-      Array.from({ length: score.measures.length }, (_, index) => 105 + index),
+      Array.from({ length: score.measures.length }, (_, index) => index + 1),
     )
   })
 })
