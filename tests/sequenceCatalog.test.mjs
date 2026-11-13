@@ -19,13 +19,14 @@ describe('predefined sequence documents', () => {
     })
   }
 
-  it('offers Redline and the grouped 15/16 sequence with Redline as default', () => {
+  it('offers both Redline scores and the grouped 15/16 sequence with Redline as default', () => {
     assert.deepEqual(
       SEQUENCE_CATALOG.map(({ id }) => id),
-      ['redline-tango', 'grouped-15-16'],
+      ['redline-tango', 'redline-tango-2', 'grouped-15-16'],
     )
     assert.equal(SEQUENCE_CATALOG[0]?.title, 'Redline Tango')
-    assert.equal(SEQUENCE_CATALOG[1]?.title, '15/16 — doubles croches (4+4+3+4)')
+    assert.equal(SEQUENCE_CATALOG[1]?.title, 'Redline Tango 2')
+    assert.equal(SEQUENCE_CATALOG[2]?.title, '15/16 — doubles croches (4+4+3+4)')
   })
 
   it('loads the grouped 15/16 score at quarter-note tempo with sixteenth-note units', () => {

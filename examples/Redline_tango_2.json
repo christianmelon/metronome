@@ -1,0 +1,251 @@
+{
+  "tempo": 120,
+  "tempoUnit": {
+    "denominator": 4,
+    "elementaryUnitsPerTempoBeat": 4
+  },
+  "sequence": [
+
+    {
+      "measures": "225",
+      "meter": "4/4"
+    },
+    {
+      "measures": "226",
+      "meter": "3/4"
+    },
+    {
+      "measures": "227",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "228-231",
+      "meter": "3/4"
+    },
+    {
+      "measures": "232-235",
+      "meter": "6/8",
+      "groups": [6,6]
+    },
+    {
+      "measures": "236-237",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "238-239",
+      "meter": "6/8",
+      "groups": [6,6]
+    },
+    {
+      "measures": "240",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "241",
+      "meter": "3/4"
+    },
+    {
+      "measures": "242",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "243",
+      "meter": "3/4"
+    },
+    {
+      "measures": "244",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "245",
+      "meter": "3/4"
+    },
+    {
+      "measures": "246",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "247",
+      "meter": "3/4"
+    },
+    {
+      "measures": "248",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "249",
+      "meter": "3/4"
+    },
+    {
+      "measures": "250",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "251",
+      "meter": "3/4"
+    },
+    {
+      "measures": "252",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "253",
+      "meter": "2/4"
+    },
+    {
+      "measures": "254",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "255",
+      "meter": "3/4"
+    },
+    {
+      "measures": "256-258",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "259",
+      "meter": "4/4"
+    },
+    {
+      "measures": "260-262",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "263",
+      "meter": "4/4"
+    },
+    {
+      "measures": "264-266",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "267",
+      "meter": "4/4"
+    },
+    {
+      "measures": "268",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "269",
+      "meter": "3/4"
+    },
+    {
+      "measures": "270",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "271",
+      "meter": "7/8",
+      "groups": [4, 4,6]
+    },
+    {
+      "measures": "272",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "273",
+      "meter": "3/4"
+    },
+    {
+      "measures": "274",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "275",
+      "meter": "3/4"
+    },
+    {
+      "measures": "276",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "277",
+      "meter": "2/4"
+    },
+    {
+      "measures": "278",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "279",
+      "meter": "3/4"
+    },
+    {
+      "measures": "280",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "281",
+      "meter": "3/4"
+    },
+    {
+      "measures": "282",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "283",
+      "meter": "4/4"
+    },
+    {
+      "measures": "284",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "285",
+      "meter": "3/4"
+    },
+    {
+      "measures": "286",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "287",
+      "meter": "4/4"
+    },
+    {
+      "measures": "288",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "289",
+      "meter": "3/4"
+    },
+    {
+      "measures": "290",
+      "meter": "5/8",
+      "groups": [6, 4]
+    },
+    {
+      "measures": "291-295",
+      "meter": "6/8",
+      "groups": [6,6]
+    }
+  ]
+}
