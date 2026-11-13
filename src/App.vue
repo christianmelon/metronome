@@ -62,6 +62,7 @@ const isStarting = ref(false)
 const isInterrupted = ref(false)
 const canRestartAfterForeground = ref(false)
 const audioContextState = ref<AudioContextState | 'unknown'>('unknown')
+const isAudioContextClosing = ref(false)
 const isAudioContextTestBusy = ref(false)
 const audioContextTestMessage = ref('')
 const isCompleted = ref(false)
@@ -74,6 +75,7 @@ const screenWakeLockState = ref<ScreenWakeLockState>('idle')
 const buildId = __APP_BUILD_ID__
 let transportRequest = 0
 let resumeOnForeground = false
+let audioContextClosePromise: Promise<void> | null = null
 const isMobile = detectMobileDevice(
   typeof navigator === 'undefined' ? undefined : navigator,
   typeof window === 'undefined' ? undefined : window.matchMedia.bind(window),
@@ -93,7 +95,11 @@ audioEngine.setContextStateHandler((state) => {
   audioContextState.value = state
   if (state === 'running' && isRunning.value) {
     isInterrupted.value = false
-  } else if (state !== 'running' && (isRunning.value || isStarting.value)) {
+  } else if (
+    state !== 'running' &&
+    (isRunning.value || isStarting.value) &&
+    !isAudioContextClosing.value
+  ) {
     isInterrupted.value = true
   }
 })
@@ -273,7 +279,7 @@ function handlePlaybackProgress(event: PlaybackTimelineEvent, request: number) {
 }
 
 async function start() {
-  if (isAudioContextTestBusy.value) {
+  if (isAudioContextClosing.value || isAudioContextTestBusy.value) {
     return
   }
 
@@ -294,6 +300,16 @@ async function start() {
   }
 
   try {
+    if (
+      audioContextState.value !== 'unknown' &&
+      audioContextState.value !== 'closed'
+    ) {
+      await closeAudioContext()
+      if (request !== transportRequest) {
+        return
+      }
+    }
+
     if (
       isRunning.value &&
       (isInterrupted.value || canRestartAfterForeground.value)
@@ -338,6 +354,7 @@ async function start() {
             isInterrupted.value = false
             isCompleted.value = true
             void screenWakeLock.release()
+            void closeAudioContext().catch(() => undefined)
           }
         },
         (nextTempo) => {
@@ -382,11 +399,34 @@ function clearTransportState() {
 
 function stop() {
   clearTransportState()
-  audioEngine.stop()
+  void closeAudioContext().catch(() => undefined)
+}
+
+async function closeAudioContext(): Promise<void> {
+  if (audioContextClosePromise) {
+    return audioContextClosePromise
+  }
+
+  isAudioContextClosing.value = true
+  const pendingClose = audioEngine.closeContext()
+  audioContextClosePromise = pendingClose
+
+  try {
+    await pendingClose
+  } catch (error: unknown) {
+    errorMessage.value =
+      error instanceof Error ? error.message : 'Impossible de fermer le contexte audio.'
+    throw error
+  } finally {
+    if (audioContextClosePromise === pendingClose) {
+      audioContextClosePromise = null
+      isAudioContextClosing.value = false
+    }
+  }
 }
 
 async function resetAudioContextForTest() {
-  if (isAudioContextTestBusy.value) {
+  if (isAudioContextClosing.value || isAudioContextTestBusy.value) {
     return
   }
 
@@ -404,7 +444,7 @@ async function resetAudioContextForTest() {
       audioContextTestMessage.value =
         'Nouveau contexte actif : un clic de test a été envoyé. Si vous ne l’entendez pas, l’état running ne garantit pas une sortie audible.'
     } else {
-      await audioEngine.closeContext()
+      await closeAudioContext()
       audioContextTestMessage.value =
         'Contexte fermé. Touchez START pour recréer le contexte et reprendre la séquence, ou ce bouton pour créer un contexte neuf et tester un clic.'
     }
@@ -501,7 +541,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('focus', handleForeground)
   window.removeEventListener('pageshow', handleForeground)
   audioEngine.setContextStateHandler(null)
-  audioEngine.stop()
+  void audioEngine.closeContext().catch((error: unknown) => {
+    console.error('Audio context could not be closed during unmount.', error)
+  })
   void screenWakeLock.release()
 })
 </script>
@@ -560,7 +602,7 @@ onBeforeUnmount(() => {
       Aléatoire : {{ clickSkipProbability === 0 ? 'désactivé' : `${clickSkipProbability} %` }}
     </button>
     <Transport
-      :can-start="canStart && !isAudioContextTestBusy"
+      :can-start="canStart && !isAudioContextClosing && !isAudioContextTestBusy"
       :is-running="isRunning"
       :is-starting="isStarting"
       :can-restart="isInterrupted || canRestartAfterForeground"
@@ -611,7 +653,8 @@ onBeforeUnmount(() => {
 
     <p class="audio-context-status" aria-live="polite">
       État AudioContext : <code>{{ audioContextState }}</code>
-      <span v-if="audioContextState === 'unknown'"> — pas encore créé</span>
+      <span v-if="isAudioContextClosing"> — fermeture en cours</span>
+      <span v-else-if="audioContextState === 'unknown'"> — pas encore créé</span>
       <span v-else-if="audioContextState === 'running'">
         — actif, sans garantie que le son soit audible
       </span>
@@ -619,7 +662,7 @@ onBeforeUnmount(() => {
     <button
       class="tempo-mode-toggle audio-context-test-button"
       type="button"
-      :disabled="isAudioContextTestBusy"
+      :disabled="isAudioContextClosing || isAudioContextTestBusy"
       @click="resetAudioContextForTest"
     >
       {{ audioContextTestButtonLabel }}

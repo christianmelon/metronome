@@ -53,6 +53,7 @@ class FakeAudioContext {
   static latest
   static initialState = 'running'
   static initialResumeState = 'running'
+  static closeShouldFail = false
 
   currentTime = 0
   state
@@ -101,6 +102,9 @@ class FakeAudioContext {
 
   async close() {
     this.closeCalls += 1
+    if (FakeAudioContext.closeShouldFail) {
+      throw new Error('Audio context could not be closed.')
+    }
     this.setState('closed')
   }
 
@@ -153,6 +157,7 @@ beforeEach(() => {
   FakeAudioContext.latest = null
   FakeAudioContext.initialState = 'running'
   FakeAudioContext.initialResumeState = 'running'
+  FakeAudioContext.closeShouldFail = false
   globalThis.window = { AudioContext: FakeAudioContext }
   globalThis.document = { visibilityState: 'visible' }
 })
@@ -293,6 +298,23 @@ describe('AudioEngine sequence playback', () => {
 
     assert.equal(FakeAudioContext.latest.state, 'suspended')
     assert.equal(FakeAudioContext.latest.oscillators.length, 0)
+  })
+
+  it('surfaces a context close failure and can close it successfully afterward', async () => {
+    const engine = new AudioEngine()
+    await engine.start(120)
+    const context = FakeAudioContext.latest
+
+    FakeAudioContext.closeShouldFail = true
+    await assert.rejects(
+      engine.closeContext(),
+      /Audio context could not be closed/,
+    )
+    assert.equal(context.state, 'running')
+
+    FakeAudioContext.closeShouldFail = false
+    await engine.closeContext()
+    assert.equal(context.state, 'closed')
   })
 
   it('starts a regular pulse and applies tempo changes to the next beat', async (t) => {
