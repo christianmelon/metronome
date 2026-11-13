@@ -262,6 +262,13 @@ h1 {
   line-height: 1.5;
 }
 
+.audio-context-status {
+  margin: 4px 0 0;
+  color: #9ca3af;
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
 .error-message {
   margin: 16px 0 0;
   color: #fca5a5;

@@ -558,6 +558,14 @@ onBeforeUnmount(() => {
       <template v-else>Séquence prête</template>
     </p>
 
+    <p class="audio-context-status" aria-live="polite">
+      État AudioContext : <code>{{ audioContextState }}</code>
+      <span v-if="audioContextState === 'unknown'"> — pas encore créé</span>
+      <span v-else-if="audioContextState === 'running'">
+        — actif, sans garantie que le son soit audible
+      </span>
+    </p>
+
     <p v-if="offlineStatus !== 'hidden'" class="offline-status" aria-live="polite">
       <template v-if="offlineStatus === 'preparing'">Préparation du mode hors ligne…</template>
       <template v-else-if="offlineStatus === 'ready'">Application prête hors ligne</template>

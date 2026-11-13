@@ -51,16 +51,20 @@ class FakeGain {
 
 class FakeAudioContext {
   static latest
+  static initialState = 'running'
+  static initialResumeState = 'running'
 
   currentTime = 0
-  state = 'running'
-  resumeState = 'running'
+  state
+  resumeState
   resumeCalls = 0
   destination = {}
   oscillators = []
   stateChangeListeners = new Set()
 
   constructor() {
+    this.state = FakeAudioContext.initialState
+    this.resumeState = FakeAudioContext.initialResumeState
     FakeAudioContext.latest = this
   }
 
@@ -135,11 +139,39 @@ describe('audio session setup', () => {
 
 beforeEach(() => {
   FakeAudioContext.latest = null
+  FakeAudioContext.initialState = 'running'
+  FakeAudioContext.initialResumeState = 'running'
   globalThis.window = { AudioContext: FakeAudioContext }
   globalThis.document = { visibilityState: 'visible' }
 })
 
 describe('AudioEngine sequence playback', () => {
+  it('resumes an initially suspended context when Start is pressed', async (t) => {
+    FakeAudioContext.initialState = 'suspended'
+    const engine = new AudioEngine()
+    const contextStates = []
+    engine.setContextStateHandler((state) => contextStates.push(state))
+
+    await engine.start(120)
+    t.after(() => engine.stop())
+
+    const context = FakeAudioContext.latest
+    assert.equal(context.resumeCalls, 1)
+    assert.equal(context.state, 'running')
+    assert.deepEqual(contextStates, ['suspended', 'running'])
+    assert.equal(context.oscillators.length, 1)
+  })
+
+  it('reports a Start failure if the initially suspended context cannot resume', async () => {
+    FakeAudioContext.initialState = 'suspended'
+    FakeAudioContext.initialResumeState = 'suspended'
+    const engine = new AudioEngine()
+
+    await assert.rejects(engine.start(120), /browser did not allow audio playback to start/)
+    assert.equal(FakeAudioContext.latest.resumeCalls, 1)
+    assert.equal(FakeAudioContext.latest.state, 'suspended')
+  })
+
   it('starts a regular pulse and applies tempo changes to the next beat', async (t) => {
     const engine = new AudioEngine()
 
