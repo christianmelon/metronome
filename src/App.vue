@@ -697,7 +697,7 @@ onBeforeUnmount(() => {
           aria-label="Modifier la probabilité d’omission aléatoire des clics"
           @click="cycleClickSkipProbability"
         >
-          Aléatoire : {{ clickSkipProbability === 0 ? 'désactivé' : `${clickSkipProbability} %` }}
+          Aléa : {{ clickSkipProbability }} %
         </button>
         <button
           class="tempo-mode-toggle"
@@ -707,7 +707,7 @@ onBeforeUnmount(() => {
           aria-label="Basculer le mode de réglage du tempo"
           @click="toggleTempoAdjustmentMode"
         >
-          Mode tempo : {{ tempoAdjustmentMode === 'mechanical' ? 'Mécanique' : 'Standard' }}
+          Tempo : {{ tempoAdjustmentMode === 'mechanical' ? 'méca.' : 'standard' }}
         </button>
       </div>
 
