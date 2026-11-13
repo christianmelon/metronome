@@ -7,11 +7,14 @@ import type {
 
 const SCHEDULE_AHEAD_TIME = 0.1
 const SCHEDULER_INTERVAL_MS = 25
-const CLICK_DURATION_SECONDS = 0.03
-const MEASURE_CLICK_DURATION_SECONDS = 0.045
-const CLICK_FREQUENCY_HZ = 1800
-const MEASURE_CLICK_FREQUENCY_HZ = 2400
-const CLICK_VOLUME = 10
+const CLICK_DURATION_SECONDS = 0.05
+const MEASURE_CLICK_DURATION_SECONDS = 0.065
+const CLICK_ATTACK_SECONDS = 0.004
+const CLICK_FREQUENCY_HZ = 1200
+const MEASURE_CLICK_FREQUENCY_HZ = 1600
+const CLICK_MIN_GAIN = 0.0001
+const CLICK_PEAK_GAIN = 0.3
+const MEASURE_CLICK_PEAK_GAIN = 0.45
 const ALWAYS_PLAY_FIRST_MUSICAL_CLICKS = 5
 
 type ScheduledClick = {
@@ -592,14 +595,20 @@ export class AudioEngine {
     const duration = isMeasureAccent
       ? MEASURE_CLICK_DURATION_SECONDS
       : CLICK_DURATION_SECONDS
+    const peakGain = isMeasureAccent
+      ? MEASURE_CLICK_PEAK_GAIN
+      : CLICK_PEAK_GAIN
     const endTime = time + duration
 
     oscillator.type = 'sine'
     oscillator.frequency.setValueAtTime(frequency, time)
 
-    gain.gain.setValueAtTime(0.0001, time)
-    gain.gain.exponentialRampToValueAtTime(CLICK_VOLUME, time + 0.001)
-    gain.gain.exponentialRampToValueAtTime(0.0001, endTime)
+    gain.gain.setValueAtTime(CLICK_MIN_GAIN, time)
+    gain.gain.exponentialRampToValueAtTime(
+      peakGain,
+      time + CLICK_ATTACK_SECONDS,
+    )
+    gain.gain.exponentialRampToValueAtTime(CLICK_MIN_GAIN, endTime)
 
     oscillator.connect(gain)
     gain.connect(context.destination)

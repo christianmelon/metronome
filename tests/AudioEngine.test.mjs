@@ -443,7 +443,13 @@ describe('AudioEngine sequence playback', () => {
 
     assert.equal(context.oscillators.length, 1)
     assert.equal(context.oscillators[0].startTime, 0.05)
-    assert.equal(context.oscillators[0].frequency.events[0].value, 2400)
+    assert.equal(context.oscillators[0].frequency.events[0].value, 1600)
+    const measureEnvelope = context.oscillators[0].connections[0].gain.events
+    assert.equal(measureEnvelope[0].value, 0.0001)
+    assert.equal(measureEnvelope[1].value, 0.45)
+    assert.ok(Math.abs(measureEnvelope[1].time - 0.054) < 1e-9)
+    assert.equal(measureEnvelope[2].value, 0.0001)
+    assert.ok(Math.abs(measureEnvelope[2].time - 0.115) < 1e-9)
 
     engine.setTempo(60)
     context.currentTime = 1
@@ -451,8 +457,13 @@ describe('AudioEngine sequence playback', () => {
 
     assert.equal(context.oscillators.length, 2)
     assert.ok(Math.abs(context.oscillators[1].startTime - 1.05) < 1e-9)
-    assert.equal(context.oscillators[1].frequency.events[0].value, 1800)
-    assert.equal(context.oscillators[1].connections[0].gain.events[1].value, 10)
+    assert.equal(context.oscillators[1].frequency.events[0].value, 1200)
+    const groupEnvelope = context.oscillators[1].connections[0].gain.events
+    assert.equal(groupEnvelope[0].value, 0.0001)
+    assert.equal(groupEnvelope[1].value, 0.3)
+    assert.ok(Math.abs(groupEnvelope[1].time - 1.054) < 1e-9)
+    assert.equal(groupEnvelope[2].value, 0.0001)
+    assert.ok(Math.abs(groupEnvelope[2].time - 1.1) < 1e-9)
   })
 
   it('plays the count-in once before continuous cycles and resumes at the measure', async (t) => {
@@ -468,12 +479,12 @@ describe('AudioEngine sequence playback', () => {
     t.after(() => engine.stop())
     const context = FakeAudioContext.latest
     assert.equal(context.oscillators.length, 1)
-    assert.equal(context.oscillators[0]?.frequency.events[0]?.value, 1800)
+    assert.equal(context.oscillators[0]?.frequency.events[0]?.value, 1200)
 
     context.currentTime = 0.5
     engine.schedule()
     assert.equal(context.oscillators.length, 2)
-    assert.equal(context.oscillators[1]?.frequency.events[0]?.value, 1800)
+    assert.equal(context.oscillators[1]?.frequency.events[0]?.value, 1200)
 
     context.currentTime = 3
     engine.schedule()
@@ -482,7 +493,7 @@ describe('AudioEngine sequence playback', () => {
     assert.ok(nextCycleMeasure)
     assert.equal(context.oscillators.length, 3)
     assert.ok(Math.abs(nextCycleMeasure.startTime - 3.05) < 1e-9)
-    assert.equal(nextCycleMeasure.frequency.events[0].value, 2400)
+    assert.equal(nextCycleMeasure.frequency.events[0].value, 1600)
 
     engine.stop()
   })
@@ -506,7 +517,7 @@ describe('AudioEngine sequence playback', () => {
     const nextCountIn = context.oscillators.at(-1)
     assert.ok(nextCountIn)
     assert.ok(Math.abs(nextCountIn.startTime - 4.55) < 1e-9)
-    assert.equal(nextCountIn.frequency.events[0].value, 1800)
+    assert.equal(nextCountIn.frequency.events[0].value, 1200)
     assert.equal(timeline.interCyclePauseSeconds, 2)
 
     engine.stop()
@@ -550,7 +561,7 @@ describe('AudioEngine sequence playback', () => {
     const secondCycleMeasure = context.oscillators.at(-1)
     assert.ok(secondCycleMeasure)
     assert.ok(Math.abs(secondCycleMeasure.startTime - 5.55) < 1e-9)
-    assert.equal(secondCycleMeasure.frequency.events[0].value, 2400)
+    assert.equal(secondCycleMeasure.frequency.events[0].value, 1600)
 
     context.currentTime = 6.5
     engine.schedule()
