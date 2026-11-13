@@ -83,6 +83,58 @@ export class AudioEngine {
     }
   }
 
+  async closeContext(): Promise<void> {
+    this.stop()
+
+    const context = this.audioContext
+    if (!context) {
+      return
+    }
+
+    if (context.state !== 'closed') {
+      await context.close()
+    }
+
+    if (context !== this.audioContext) {
+      return
+    }
+    if (context.state !== 'closed') {
+      throw new Error('The browser did not close the audio context.')
+    }
+
+    this.scheduledClicks.clear()
+    if (this.contextStateListener) {
+      context.removeEventListener('statechange', this.contextStateListener)
+    }
+    this.audioContext = null
+    this.contextStateListener = null
+    this.contextStateHandler?.('closed')
+  }
+
+  async createFreshContextAndTest(): Promise<void> {
+    this.stop()
+
+    if (typeof window === 'undefined' || typeof window.AudioContext === 'undefined') {
+      throw new Error('Web Audio API is not available in this browser.')
+    }
+    if (this.audioContext && this.audioContext.state !== 'closed') {
+      throw new Error('Close the current audio context before creating a new one.')
+    }
+
+    const token = ++this.lifecycleToken
+    const context = this.createAudioContext()
+    const state = await context.resume().then(() => getAudioContextState(context))
+
+    if (token !== this.lifecycleToken || context !== this.audioContext) {
+      return
+    }
+    if (state !== 'running') {
+      throw new Error('The browser did not allow audio playback to start.')
+    }
+
+    this.scheduleClick(context.currentTime + 0.05, 'pulse')
+  }
+
   async start(tempo: number): Promise<void> {
     this.setTempo(tempo)
 
@@ -274,44 +326,11 @@ export class AudioEngine {
       throw new Error('Web Audio API is not available in this browser.')
     }
 
-    if (!this.audioContext || this.audioContext.state === 'closed') {
-      if (this.audioContext && this.contextStateListener) {
-        this.audioContext.removeEventListener(
-          'statechange',
-          this.contextStateListener,
-        )
-      }
-      this.audioContext = new window.AudioContext()
-      const context = this.audioContext
-      this.contextStateListener = () => {
-        const state = context.state
-        this.contextStateHandler?.(state)
-
-        if (state === 'running') {
-          this.automaticResumeAttempted = false
-          return
-        }
-
-        if (
-          this.running &&
-          !this.automaticResumeAttempted &&
-          typeof document !== 'undefined' &&
-          document.visibilityState === 'visible'
-        ) {
-          this.automaticResumeAttempted = true
-          void this.resume().catch((error: unknown) => {
-            console.info(
-              'Audio did not resume automatically; use START to restart playback.',
-              error,
-            )
-          })
-        }
-      }
-      context.addEventListener('statechange', this.contextStateListener)
-      this.contextStateHandler?.(context.state)
+    let context = this.audioContext
+    if (!context || context.state === 'closed') {
+      context = this.createAudioContext()
     }
 
-    const context = this.audioContext
     if (context.state === 'closed') {
       throw new Error('The audio context is closed and cannot be restarted.')
     }
@@ -356,6 +375,49 @@ export class AudioEngine {
       this.stop()
       throw error
     }
+  }
+
+  private createAudioContext(): AudioContext {
+    if (typeof window === 'undefined' || typeof window.AudioContext === 'undefined') {
+      throw new Error('Web Audio API is not available in this browser.')
+    }
+
+    if (this.audioContext && this.contextStateListener) {
+      this.audioContext.removeEventListener(
+        'statechange',
+        this.contextStateListener,
+      )
+    }
+
+    const context = new window.AudioContext()
+    this.audioContext = context
+    this.contextStateListener = () => {
+      const state = context.state
+      this.contextStateHandler?.(state)
+
+      if (state === 'running') {
+        this.automaticResumeAttempted = false
+        return
+      }
+
+      if (
+        this.running &&
+        !this.automaticResumeAttempted &&
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible'
+      ) {
+        this.automaticResumeAttempted = true
+        void this.resume().catch((error: unknown) => {
+          console.info(
+            'Audio did not resume automatically; use START to restart playback.',
+            error,
+          )
+        })
+      }
+    }
+    context.addEventListener('statechange', this.contextStateListener)
+    this.contextStateHandler?.(context.state)
+    return context
   }
 
   private schedule(): void {

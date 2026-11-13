@@ -57,6 +57,7 @@ class FakeAudioContext {
   currentTime = 0
   state
   resumeState
+  closeCalls = 0
   suspendCalls = 0
   resumeCalls = 0
   destination = {}
@@ -96,6 +97,11 @@ class FakeAudioContext {
   async suspend() {
     this.suspendCalls += 1
     this.setState('suspended')
+  }
+
+  async close() {
+    this.closeCalls += 1
+    this.setState('closed')
   }
 
   createOscillator() {
@@ -246,6 +252,47 @@ describe('AudioEngine sequence playback', () => {
     assert.equal(context.resumeCalls, 2)
     assert.equal(context.state, 'suspended')
     assert.equal(context.oscillators.length, 1)
+  })
+
+  it('closes the old context and creates a new context with an audible test click', async (t) => {
+    const engine = new AudioEngine()
+    const contextStates = []
+    engine.setContextStateHandler((state) => contextStates.push(state))
+
+    await engine.start(120)
+    const oldContext = FakeAudioContext.latest
+    await engine.closeContext()
+
+    assert.equal(oldContext.closeCalls, 1)
+    assert.equal(oldContext.state, 'closed')
+    assert.equal(oldContext.oscillators[0].stopTime, oldContext.currentTime)
+    assert.equal(contextStates.at(-1), 'closed')
+
+    FakeAudioContext.initialState = 'suspended'
+    await engine.createFreshContextAndTest()
+    t.after(() => engine.closeContext())
+
+    const newContext = FakeAudioContext.latest
+    assert.notEqual(newContext, oldContext)
+    assert.equal(newContext.resumeCalls, 1)
+    assert.equal(newContext.state, 'running')
+    assert.equal(newContext.oscillators.length, 1)
+    assert.equal(newContext.oscillators[0].startTime, 0.05)
+    assert.equal(contextStates.at(-1), 'running')
+  })
+
+  it('reports a fresh-context test failure when the new context cannot resume', async () => {
+    const engine = new AudioEngine()
+
+    FakeAudioContext.initialState = 'suspended'
+    FakeAudioContext.initialResumeState = 'suspended'
+    await assert.rejects(
+      engine.createFreshContextAndTest(),
+      /browser did not allow audio playback to start/,
+    )
+
+    assert.equal(FakeAudioContext.latest.state, 'suspended')
+    assert.equal(FakeAudioContext.latest.oscillators.length, 0)
   })
 
   it('starts a regular pulse and applies tempo changes to the next beat', async (t) => {

@@ -62,6 +62,8 @@ const isStarting = ref(false)
 const isInterrupted = ref(false)
 const canRestartAfterForeground = ref(false)
 const audioContextState = ref<AudioContextState | 'unknown'>('unknown')
+const isAudioContextTestBusy = ref(false)
+const audioContextTestMessage = ref('')
 const isCompleted = ref(false)
 const errorMessage = ref('')
 const currentMeasure = ref<number | null>(null)
@@ -139,6 +141,15 @@ const currentMeasureInfo = computed(() => {
     return null
   }
   return score.value.measures.find((measure) => measure.number === currentMeasure.value) ?? null
+})
+const audioContextTestButtonLabel = computed(() => {
+  if (isAudioContextTestBusy.value) {
+    return 'Test audio…'
+  }
+  return audioContextState.value === 'unknown' ||
+    audioContextState.value === 'closed'
+    ? 'Créer un contexte neuf et tester le son'
+    : 'Fermer le contexte audio'
 })
 
 function updateTempo(nextTempo: number) {
@@ -262,6 +273,10 @@ function handlePlaybackProgress(event: PlaybackTimelineEvent, request: number) {
 }
 
 async function start() {
+  if (isAudioContextTestBusy.value) {
+    return
+  }
+
   const parsedScore = score.value
   if (mode.value === 'sequence' && (!parsedScore || !canStart.value)) {
     errorMessage.value = 'Sélectionne une séquence et une plage de mesures valide.'
@@ -273,6 +288,7 @@ async function start() {
   const request = ++transportRequest
   isStarting.value = true
   errorMessage.value = ''
+  audioContextTestMessage.value = ''
   if (isMobile) {
     void screenWakeLock.request()
   }
@@ -353,16 +369,51 @@ async function start() {
   }
 }
 
-function stop() {
+function clearTransportState() {
   transportRequest += 1
   resumeOnForeground = false
-  audioEngine.stop()
   void screenWakeLock.release()
   isRunning.value = false
   isStarting.value = false
   isInterrupted.value = false
   canRestartAfterForeground.value = false
   clearPlaybackStatus()
+}
+
+function stop() {
+  clearTransportState()
+  audioEngine.stop()
+}
+
+async function resetAudioContextForTest() {
+  if (isAudioContextTestBusy.value) {
+    return
+  }
+
+  isAudioContextTestBusy.value = true
+  errorMessage.value = ''
+  audioContextTestMessage.value = ''
+  clearTransportState()
+
+  try {
+    if (
+      audioContextState.value === 'unknown' ||
+      audioContextState.value === 'closed'
+    ) {
+      await audioEngine.createFreshContextAndTest()
+      audioContextTestMessage.value =
+        'Nouveau contexte actif : un clic de test a été envoyé. Si vous ne l’entendez pas, l’état running ne garantit pas une sortie audible.'
+    } else {
+      await audioEngine.closeContext()
+      audioContextTestMessage.value =
+        'Contexte fermé. Touchez à nouveau pour créer un contexte neuf et tester le son.'
+    }
+  } catch (error: unknown) {
+    errorMessage.value =
+      error instanceof Error ? error.message : 'Impossible de tester le contexte audio.'
+  } finally {
+    isAudioContextTestBusy.value = false
+  }
 }
 
 function markBackgrounded() {
@@ -509,7 +560,7 @@ onBeforeUnmount(() => {
       Aléatoire : {{ clickSkipProbability === 0 ? 'désactivé' : `${clickSkipProbability} %` }}
     </button>
     <Transport
-      :can-start="canStart"
+      :can-start="canStart && !isAudioContextTestBusy"
       :is-running="isRunning"
       :is-starting="isStarting"
       :can-restart="isInterrupted || canRestartAfterForeground"
@@ -564,6 +615,21 @@ onBeforeUnmount(() => {
       <span v-else-if="audioContextState === 'running'">
         — actif, sans garantie que le son soit audible
       </span>
+    </p>
+    <button
+      class="tempo-mode-toggle audio-context-test-button"
+      type="button"
+      :disabled="isAudioContextTestBusy"
+      @click="resetAudioContextForTest"
+    >
+      {{ audioContextTestButtonLabel }}
+    </button>
+    <p
+      v-if="audioContextTestMessage"
+      class="audio-context-test-status"
+      aria-live="polite"
+    >
+      {{ audioContextTestMessage }}
     </p>
 
     <p v-if="offlineStatus !== 'hidden'" class="offline-status" aria-live="polite">
