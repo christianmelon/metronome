@@ -47,15 +47,122 @@ button:focus-visible {
 }
 
 .app-header {
+  position: relative;
+  display: grid;
+  min-height: 48px;
+  place-items: center;
   margin-bottom: 36px;
 }
 
-.eyebrow {
-  margin: 0 0 8px;
-  color: #9ca3af;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.18em;
+.app-header h1 {
+  width: calc(100% - 52px);
+}
+
+.header-navigation-button {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  transform: translateY(-50%);
+  border: 1px solid #4b5563;
+  border-radius: 12px;
+  color: #d1d5db;
+  background: #18212e;
+  cursor: pointer;
+}
+
+.header-navigation-button:hover {
+  color: #fff;
+  background: #374151;
+}
+
+.header-navigation-button svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.playback-panel {
+  display: grid;
+  grid-template-areas:
+    "mode"
+    "sequence"
+    "tempo"
+    "options"
+    "transport"
+    "status";
+  min-width: 0;
+}
+
+.playback-panel-pulse {
+  grid-template-areas:
+    "mode"
+    "tempo"
+    "options"
+    "transport"
+    "status"
+    "sequence";
+}
+
+.playback-mode-selector {
+  grid-area: mode;
+}
+
+.playback-sequence-settings {
+  grid-area: sequence;
+  min-width: 0;
+}
+
+.playback-sequence-settings-hidden {
+  visibility: hidden;
+}
+
+.playback-tempo {
+  grid-area: tempo;
+}
+
+.playback-option-toggles {
+  display: flex;
+  grid-area: options;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.playback-transport {
+  grid-area: transport;
+}
+
+.sequence-playback-status {
+  grid-area: status;
+  min-height: 3.25rem;
+}
+
+.sequence-playback-status-hidden {
+  visibility: hidden;
+}
+
+.diagnostics-panel {
+  text-align: left;
+}
+
+.diagnostics-panel h2 {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  text-align: center;
+}
+
+.diagnostic-transport {
+  margin-bottom: 20px;
 }
 
 h1 {
@@ -292,12 +399,6 @@ h1 {
   font-size: 0.75rem;
 }
 
-.app-footer {
-  display: flex;
-  justify-content: flex-start;
-  margin-top: 20px;
-}
-
 .tempo-mode-toggle {
   padding: 8px 11px;
   border: 1px solid #4b5563;
@@ -315,9 +416,7 @@ h1 {
 }
 
 .random-probability-toggle {
-  display: block;
   min-height: 40px;
-  margin: 0 auto 24px;
 }
 
 @media (max-width: 380px) {

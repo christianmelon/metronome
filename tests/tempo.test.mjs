@@ -6,6 +6,7 @@ import {
   MECHANICAL_TEMPOS,
   MIN_MECHANICAL_TEMPO_BPM,
   nearestMechanicalTempo,
+  tempoForAdjustmentMode,
   TEMPO_HOLD_ACCELERATION_MS,
   TEMPO_HOLD_DELAY_MS,
   tempoRepeatIntervalForHold,
@@ -62,5 +63,13 @@ describe('mechanical tempo values', () => {
     assert.equal(nearestMechanicalTempo(300), 208)
     assert.equal(nearestMechanicalTempo(59), 58)
     assert.equal(nearestMechanicalTempo(133), 132)
+  })
+})
+
+describe('score tempo defaults', () => {
+  it('uses the score tempo directly or its nearest mechanical value', () => {
+    assert.equal(tempoForAdjustmentMode(120, 'standard'), 120)
+    assert.equal(tempoForAdjustmentMode(120, 'mechanical'), 120)
+    assert.equal(tempoForAdjustmentMode(123, 'mechanical'), 120)
   })
 })

@@ -72,3 +72,10 @@ export function nearestMechanicalTempo(tempo: number): number {
       : nearest
   }, MECHANICAL_TEMPOS[0]!)
 }
+
+export function tempoForAdjustmentMode(
+  tempo: number,
+  mode: 'standard' | 'mechanical',
+): number {
+  return mode === 'mechanical' ? nearestMechanicalTempo(tempo) : tempo
+}

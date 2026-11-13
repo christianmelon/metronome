@@ -453,11 +453,20 @@ export class AudioEngine {
 
   private scheduleSequence(playback: SequencePlayback, now: number): void {
     while (true) {
-      const event = playback.timeline.initialEvents[playback.eventIndex]
+      const repeatsWithoutCountIn =
+        playback.timeline.repeatMode === 'continuous' &&
+        playback.cycleIndex > 0
+      const cycleEvents = repeatsWithoutCountIn
+        ? playback.timeline.loopEvents
+        : playback.timeline.initialEvents
+      const cycleEndUnitOffset = repeatsWithoutCountIn
+        ? playback.timeline.loopLengthUnits
+        : playback.timeline.endUnitOffset
+      const event = cycleEvents[playback.eventIndex]
       if (!event) {
         const cycleEndTime =
           playback.cycleStartTime +
-          playback.timeline.endUnitOffset *
+          cycleEndUnitOffset *
             this.secondsPerElementaryUnit(playback.timeline)
         const isFinalCycle =
           playback.timeline.repeatMode === 'none' ||

@@ -6,6 +6,7 @@ import { SEQUENCE_CATALOG } from '../src/music/sequenceCatalog.ts'
 
 const catalogFiles = [
   ['examples/Redline_tangp.json', 120],
+  ['examples/grouped-15-16.json', 120],
 ]
 
 describe('predefined sequence documents', () => {
@@ -18,12 +19,30 @@ describe('predefined sequence documents', () => {
     })
   }
 
-  it('offers Redline as the only sequence and makes it the default', () => {
+  it('offers Redline and the grouped 15/16 sequence with Redline as default', () => {
     assert.deepEqual(
       SEQUENCE_CATALOG.map(({ id }) => id),
-      ['redline-tango'],
+      ['redline-tango', 'grouped-15-16'],
     )
     assert.equal(SEQUENCE_CATALOG[0]?.title, 'Redline Tango')
+    assert.equal(SEQUENCE_CATALOG[1]?.title, '15/16 — doubles croches (4+4+3+4)')
+  })
+
+  it('loads the grouped 15/16 score at quarter-note tempo with sixteenth-note units', () => {
+    const score = parseScoreJson(readFileSync('examples/grouped-15-16.json', 'utf8'))
+
+    assert.equal(score.tempo, 120)
+    assert.deepEqual(score.tempoUnit, {
+      denominator: 4,
+      elementaryUnitsPerTempoBeat: 4,
+    })
+    assert.equal(score.measures[0]?.meter.notation, '15/16')
+    assert.deepEqual(score.measures[0]?.groups, [4, 4, 3, 4])
+    assert.equal(score.totalElementaryUnits, 15)
+    assert.deepEqual(
+      score.events.filter(({ startsGroup }) => startsGroup).map(({ unitOffset }) => unitOffset),
+      [0, 4, 8, 11],
+    )
   })
 
   it('loads the current Redline score including its default 2/4 grouping', () => {

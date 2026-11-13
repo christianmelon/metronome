@@ -28,6 +28,7 @@ import {
   MAX_TEMPO_BPM,
   MIN_TEMPO_BPM,
   nearestMechanicalTempo,
+  tempoForAdjustmentMode,
 } from './tempo'
 
 type PlaybackMode = 'pulse' | 'sequence'
@@ -40,6 +41,7 @@ if (!defaultSequence) {
 }
 
 const audioEngine = new AudioEngine()
+const isDiagnosticsView = ref(false)
 const mode = ref<PlaybackMode>('pulse')
 const tempoAdjustmentMode = ref<TempoAdjustmentMode>('standard')
 const tempo = ref(132)
@@ -148,6 +150,44 @@ const currentMeasureInfo = computed(() => {
   }
   return score.value.measures.find((measure) => measure.number === currentMeasure.value) ?? null
 })
+const playbackStatusMessage = computed(() => {
+  if (isInterrupted.value) {
+    return `Audio interrompu (${audioContextState.value}) — touchez START pour redémarrer`
+  }
+  if (canRestartAfterForeground.value) {
+    return 'Retour au premier plan — si aucun son, touchez START pour redémarrer'
+  }
+  if (mode.value === 'sequence' && countInProgress.value) {
+    return `Décompte : pulse ${countInProgress.value.pulseNumber} / ${countInProgress.value.totalPulses}`
+  }
+  if (mode.value === 'sequence' && currentMeasureInfo.value) {
+    const measure = currentMeasureInfo.value
+    const currentGroupMessage =
+      currentGroup.value === null ? '' : ` · Groupe ${currentGroup.value}`
+    return `Mesure ${measure.number} — ${measure.meter.notation}${currentGroupMessage} · Groupes ${measure.groups.join(' + ')}`
+  }
+  if (isStarting.value) {
+    return 'Préparation…'
+  }
+  if (isRunning.value) {
+    return mode.value === 'pulse' ? 'Pulse régulière en cours' : 'Séquence en lecture'
+  }
+  if (isCompleted.value) {
+    return 'Lecture terminée'
+  }
+  return mode.value === 'pulse' ? 'Prêt à jouer la pulse' : 'Séquence prête'
+})
+const isSequencePlaybackStatusVisible = computed(
+  () =>
+    mode.value === 'sequence' &&
+    (isInterrupted.value ||
+      canRestartAfterForeground.value ||
+      countInProgress.value !== null ||
+      currentMeasureInfo.value !== null ||
+      isStarting.value ||
+      isRunning.value ||
+      isCompleted.value),
+)
 const audioContextTestButtonLabel = computed(() => {
   if (isAudioContextTestBusy.value) {
     return 'Test audio…'
@@ -161,6 +201,21 @@ const audioContextTestButtonLabel = computed(() => {
 function updateTempo(nextTempo: number) {
   tempo.value = nextTempo
   audioEngine.setTempo(nextTempo)
+}
+
+function applySelectedScoreTempo() {
+  const scoreTempo = score.value?.tempo
+  if (scoreTempo === undefined) {
+    return
+  }
+
+  const proposedTempo = tempoForAdjustmentMode(
+    scoreTempo,
+    tempoAdjustmentMode.value,
+  )
+  updateTempo(proposedTempo)
+  progressionStartTempo.value = proposedTempo
+  progressionEndTempo.value = proposedTempo
 }
 
 function toggleTempoAdjustmentMode() {
@@ -220,6 +275,9 @@ function setMode(nextMode: PlaybackMode) {
   }
 
   mode.value = nextMode
+  if (nextMode === 'sequence') {
+    applySelectedScoreTempo()
+  }
   errorMessage.value = ''
   clearPlaybackStatus()
 }
@@ -245,13 +303,7 @@ function selectSequence(id: string) {
     selectedMeasures[selectedMeasures.length - 1]?.number ?? startMeasure.value
   countInPulses.value = 4
   repeatMode.value = 'none'
-  updateTempo(
-    tempoAdjustmentMode.value === 'mechanical'
-      ? nearestMechanicalTempo(selected.score.tempo)
-      : selected.score.tempo,
-  )
-  progressionStartTempo.value = tempo.value
-  progressionEndTempo.value = tempo.value
+  applySelectedScoreTempo()
   progressionIncrement.value = 5
   errorMessage.value = ''
   clearPlaybackStatus()
@@ -556,144 +608,198 @@ onBeforeUnmount(() => {
     data-audio-session-request="auto"
   >
     <header class="app-header">
-      <p class="eyebrow">PULSE AUDIO</p>
-      <h1>Métronome</h1>
+      <h1>Tuba Pulse</h1>
+      <button
+        class="header-navigation-button"
+        type="button"
+        aria-controls="diagnostics-panel"
+        :aria-expanded="isDiagnosticsView"
+        :aria-label="isDiagnosticsView ? 'Retour à Tuba Pulse' : 'Ouvrir les diagnostics'"
+        :title="isDiagnosticsView ? 'Retour à Tuba Pulse' : 'Diagnostic'"
+        @click="isDiagnosticsView = !isDiagnosticsView"
+      >
+        <svg
+          v-if="!isDiagnosticsView"
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          focusable="false"
+        >
+          <path
+            d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18v3h3l5.3-5.3a5 5 0 0 0 6.4-6.4L14 13l-3-3 3.7-3.7Z"
+          />
+        </svg>
+        <svg
+          v-else
+          aria-hidden="true"
+          viewBox="0 0 24 24"
+          focusable="false"
+        >
+          <path d="m15 18-6-6 6-6M9 12h12" />
+        </svg>
+      </button>
     </header>
 
-    <ModeSelector :model-value="mode" @update:model-value="setMode" />
-
-    <SequenceControls
-      v-if="mode === 'sequence'"
-      :catalog="SEQUENCE_CATALOG"
-      :selected-sequence-id="selectedSequenceId"
-      :minimum-measure="firstMeasureNumber"
-      :maximum-measure="lastMeasureNumber"
-      :start-measure="startMeasure"
-      :end-measure="endMeasure"
-      :count-in-pulses="countInPulses"
-      :repeat-mode="repeatMode"
-      :progression-start-tempo="progressionStartTempo"
-      :progression-end-tempo="progressionEndTempo"
-      :progression-increment="progressionIncrement"
-      :disabled="isRunning || isStarting"
-      @sequence-selected="selectSequence"
-      @update:start-measure="startMeasure = $event"
-      @update:end-measure="endMeasure = $event"
-      @update:count-in-pulses="countInPulses = $event"
-      @update:repeat-mode="updateRepeatMode"
-      @update:progression-start-tempo="progressionStartTempo = $event"
-      @update:progression-end-tempo="progressionEndTempo = $event"
-      @update:progression-increment="progressionIncrement = $event"
-    />
-
-    <TempoControl
-      :tempo="tempo"
-      :mode="tempoAdjustmentMode"
-      :disabled="isTempoLocked"
-      @change="updateTempo"
-    />
-    <button
-      class="tempo-mode-toggle random-probability-toggle"
-      type="button"
-      :aria-pressed="clickSkipProbability > 0"
-      aria-label="Modifier la probabilité d’omission aléatoire des clics"
-      @click="cycleClickSkipProbability"
+    <section
+      class="playback-panel"
+      :class="`playback-panel-${mode}`"
+      aria-label="Lecture"
+      v-show="!isDiagnosticsView"
     >
-      Aléatoire : {{ clickSkipProbability === 0 ? 'désactivé' : `${clickSkipProbability} %` }}
-    </button>
-    <Transport
-      :can-start="canStart && !isAudioContextClosing && !isAudioContextTestBusy"
-      :is-running="isRunning"
-      :is-starting="isStarting"
-      :can-restart="isInterrupted || canRestartAfterForeground"
-      @start="start"
-      @stop="stop"
-    />
+      <ModeSelector
+        class="playback-mode-selector"
+        :model-value="mode"
+        @update:model-value="setMode"
+      />
 
-    <p
-      v-if="
-        isMobile &&
-        (!screenWakeLockSupported ||
-          isRunning ||
-          isStarting ||
-          screenWakeLockState === 'failed')
-      "
-      class="wake-lock-status"
-      aria-live="polite"
-    >
-      {{ screenWakeLockMessage }}
-    </p>
+      <div
+        class="playback-sequence-settings"
+        :class="{ 'playback-sequence-settings-hidden': mode !== 'sequence' }"
+        :aria-hidden="mode !== 'sequence'"
+        :inert="mode !== 'sequence'"
+      >
+        <SequenceControls
+          :catalog="SEQUENCE_CATALOG"
+          :selected-sequence-id="selectedSequenceId"
+          :minimum-measure="firstMeasureNumber"
+          :maximum-measure="lastMeasureNumber"
+          :start-measure="startMeasure"
+          :end-measure="endMeasure"
+          :count-in-pulses="countInPulses"
+          :repeat-mode="repeatMode"
+          :progression-start-tempo="progressionStartTempo"
+          :progression-end-tempo="progressionEndTempo"
+          :progression-increment="progressionIncrement"
+          :disabled="isRunning || isStarting"
+          @sequence-selected="selectSequence"
+          @update:start-measure="startMeasure = $event"
+          @update:end-measure="endMeasure = $event"
+          @update:count-in-pulses="countInPulses = $event"
+          @update:repeat-mode="updateRepeatMode"
+          @update:progression-start-tempo="progressionStartTempo = $event"
+          @update:progression-end-tempo="progressionEndTempo = $event"
+          @update:progression-increment="progressionIncrement = $event"
+        />
+      </div>
+
+      <div class="playback-tempo">
+        <TempoControl
+          :tempo="tempo"
+          :mode="tempoAdjustmentMode"
+          :disabled="isTempoLocked"
+          @change="updateTempo"
+        />
+      </div>
+      <div class="playback-option-toggles" role="group" aria-label="Options de lecture">
+        <button
+          class="tempo-mode-toggle random-probability-toggle"
+          type="button"
+          :aria-pressed="clickSkipProbability > 0"
+          aria-label="Modifier la probabilité d’omission aléatoire des clics"
+          @click="cycleClickSkipProbability"
+        >
+          Aléatoire : {{ clickSkipProbability === 0 ? 'désactivé' : `${clickSkipProbability} %` }}
+        </button>
+        <button
+          class="tempo-mode-toggle"
+          type="button"
+          :disabled="isTempoLocked"
+          :aria-pressed="tempoAdjustmentMode === 'mechanical'"
+          aria-label="Basculer le mode de réglage du tempo"
+          @click="toggleTempoAdjustmentMode"
+        >
+          Mode tempo : {{ tempoAdjustmentMode === 'mechanical' ? 'Mécanique' : 'Standard' }}
+        </button>
+      </div>
+
+      <div class="playback-transport">
+        <Transport
+          :can-start="canStart && !isAudioContextClosing && !isAudioContextTestBusy"
+          :is-running="isRunning"
+          :is-starting="isStarting"
+          :can-restart="isInterrupted || canRestartAfterForeground"
+          @start="start"
+          @stop="stop"
+        />
+      </div>
+
+      <p
+        class="playback-status sequence-playback-status"
+        :class="{ 'sequence-playback-status-hidden': !isSequencePlaybackStatusVisible }"
+        :aria-hidden="!isSequencePlaybackStatusVisible"
+        aria-live="polite"
+      >
+        {{ isSequencePlaybackStatusVisible ? playbackStatusMessage : '' }}
+      </p>
+    </section>
 
     <p v-if="errorMessage" class="error-message" role="alert">
       {{ errorMessage }}
     </p>
-    <p class="playback-status" aria-live="polite">
-      <template v-if="isInterrupted">
-        Audio interrompu ({{ audioContextState }}) — touchez START pour redémarrer
-      </template>
-      <template v-else-if="canRestartAfterForeground">
-        Retour au premier plan — si aucun son, touchez START pour redémarrer
-      </template>
-      <template v-else-if="mode === 'sequence' && countInProgress">
-        Décompte : pulse {{ countInProgress.pulseNumber }} / {{ countInProgress.totalPulses }}
-      </template>
-      <template v-else-if="mode === 'sequence' && currentMeasureInfo">
-        Mesure {{ currentMeasureInfo.number }} — {{ currentMeasureInfo.meter.notation }}
-        <span v-if="currentGroup"> · Groupe {{ currentGroup }}</span>
-        <span> · Groupes {{ currentMeasureInfo.groups.join(' + ') }}</span>
-      </template>
-      <template v-else-if="isStarting">Préparation…</template>
-      <template v-else-if="isRunning">
-        {{ mode === 'pulse' ? 'Pulse régulière en cours' : 'Séquence en lecture' }}
-      </template>
-      <template v-else-if="isCompleted">Lecture terminée</template>
-      <template v-else-if="mode === 'pulse'">Prêt à jouer la pulse</template>
-      <template v-else>Séquence prête</template>
-    </p>
-
-    <p class="audio-context-status" aria-live="polite">
-      État AudioContext : <code>{{ audioContextState }}</code>
-      <span v-if="isAudioContextClosing"> — fermeture en cours</span>
-      <span v-else-if="audioContextState === 'unknown'"> — pas encore créé</span>
-      <span v-else-if="audioContextState === 'running'">
-        — actif, sans garantie que le son soit audible
-      </span>
-    </p>
-    <button
-      class="tempo-mode-toggle audio-context-test-button"
-      type="button"
-      :disabled="isAudioContextClosing || isAudioContextTestBusy"
-      @click="resetAudioContextForTest"
+    <section
+      id="diagnostics-panel"
+      class="diagnostics-panel"
+      v-show="isDiagnosticsView"
     >
-      {{ audioContextTestButtonLabel }}
-    </button>
-    <p
-      v-if="audioContextTestMessage"
-      class="audio-context-test-status"
-      aria-live="polite"
-    >
-      {{ audioContextTestMessage }}
-    </p>
-
-    <p v-if="offlineStatus !== 'hidden'" class="offline-status" aria-live="polite">
-      <template v-if="offlineStatus === 'preparing'">Préparation du mode hors ligne…</template>
-      <template v-else-if="offlineStatus === 'ready'">Application prête hors ligne</template>
-      <template v-else>
-        Mode hors ligne indisponible sur cette adresse ou ce navigateur.
-      </template>
-    </p>
-
-    <footer class="app-footer">
-      <button
-        class="tempo-mode-toggle"
-        type="button"
-        :disabled="isTempoLocked"
-        :aria-pressed="tempoAdjustmentMode === 'mechanical'"
-        aria-label="Basculer le mode de réglage du tempo"
-        @click="toggleTempoAdjustmentMode"
+      <h2>Diagnostic</h2>
+      <div class="diagnostic-transport">
+        <Transport
+          :can-start="canStart && !isAudioContextClosing && !isAudioContextTestBusy"
+          :is-running="isRunning"
+          :is-starting="isStarting"
+          :can-restart="isInterrupted || canRestartAfterForeground"
+          @start="start"
+          @stop="stop"
+        />
+      </div>
+      <p
+        v-if="
+          isMobile &&
+          (!screenWakeLockSupported ||
+            isRunning ||
+            isStarting ||
+            screenWakeLockState === 'failed')
+        "
+        class="wake-lock-status"
+        aria-live="polite"
       >
-        Mode tempo : {{ tempoAdjustmentMode === 'mechanical' ? 'Mécanique' : 'Standard' }}
+        {{ screenWakeLockMessage }}
+      </p>
+
+      <p class="playback-status" aria-live="polite">
+        {{ playbackStatusMessage }}
+      </p>
+
+      <p class="audio-context-status" aria-live="polite">
+        État AudioContext : <code>{{ audioContextState }}</code>
+        <span v-if="isAudioContextClosing"> — fermeture en cours</span>
+        <span v-else-if="audioContextState === 'unknown'"> — pas encore créé</span>
+        <span v-else-if="audioContextState === 'running'">
+          — actif, sans garantie que le son soit audible
+        </span>
+      </p>
+      <button
+        class="tempo-mode-toggle audio-context-test-button"
+        type="button"
+        :disabled="isAudioContextClosing || isAudioContextTestBusy"
+        @click="resetAudioContextForTest"
+      >
+        {{ audioContextTestButtonLabel }}
       </button>
-    </footer>
+      <p
+        v-if="audioContextTestMessage"
+        class="audio-context-test-status"
+        aria-live="polite"
+      >
+        {{ audioContextTestMessage }}
+      </p>
+
+      <p v-if="offlineStatus !== 'hidden'" class="offline-status" aria-live="polite">
+        <template v-if="offlineStatus === 'preparing'">Préparation du mode hors ligne…</template>
+        <template v-else-if="offlineStatus === 'ready'">Application prête hors ligne</template>
+        <template v-else>
+          Mode hors ligne indisponible sur cette adresse ou ce navigateur.
+        </template>
+      </p>
+    </section>
   </main>
 </template>

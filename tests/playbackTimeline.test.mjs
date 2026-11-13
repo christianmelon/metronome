@@ -51,19 +51,25 @@ describe('buildPlaybackTimeline', () => {
     assert.equal(timeline.loopLengthUnits, 40)
   })
 
-  it('builds a selected loop with the count-in available for every cycle', () => {
+  it('keeps the count-in in the initial events and excludes it from continuous loop events', () => {
     const timeline = buildPlaybackTimeline(score, {
       startMeasure: 2,
       endMeasure: 3,
-      countInPulses: 0,
+      countInPulses: 2,
       loop: true,
     })
 
-    assert.equal(timeline.initialEvents.length, 6)
+    assert.equal(
+      timeline.initialEvents.filter(({ kind }) => kind === 'count-in').length,
+      2,
+    )
+    assert.equal(timeline.initialEvents[2]?.kind, 'measure')
+    assert.equal(timeline.initialEvents[2]?.unitOffset, 8)
     assert.equal(timeline.loopEvents.length, 6)
+    assert.ok(timeline.loopEvents.every(({ kind }) => kind !== 'count-in'))
     assert.equal(timeline.loopLengthUnits, 12)
-    assert.equal(timeline.initialEvents[0].measureNumber, 2)
-    assert.equal(timeline.initialEvents[0].unitOffset, 0)
+    assert.equal(timeline.loopEvents[0]?.measureNumber, 2)
+    assert.equal(timeline.loopEvents[0]?.unitOffset, 0)
     assert.equal(timeline.loop, true)
     assert.equal(timeline.repeatMode, 'continuous')
     assert.equal(timeline.interCyclePauseSeconds, 0)

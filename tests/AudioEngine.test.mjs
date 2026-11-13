@@ -455,7 +455,7 @@ describe('AudioEngine sequence playback', () => {
     assert.equal(context.oscillators[1].connections[0].gain.events[1].value, 10)
   })
 
-  it('repeats the count-in at the start of every cycle without bursting missed clicks', async (t) => {
+  it('plays the count-in once before continuous cycles and resumes at the measure', async (t) => {
     const timeline = buildPlaybackTimeline(score, {
       startMeasure: 1,
       endMeasure: 1,
@@ -468,14 +468,21 @@ describe('AudioEngine sequence playback', () => {
     t.after(() => engine.stop())
     const context = FakeAudioContext.latest
     assert.equal(context.oscillators.length, 1)
+    assert.equal(context.oscillators[0]?.frequency.events[0]?.value, 1800)
+
+    context.currentTime = 0.5
+    engine.schedule()
+    assert.equal(context.oscillators.length, 2)
+    assert.equal(context.oscillators[1]?.frequency.events[0]?.value, 1800)
 
     context.currentTime = 3
     engine.schedule()
 
-    const nextCycleCountIn = context.oscillators.at(-1)
-    assert.ok(nextCycleCountIn)
-    assert.ok(Math.abs(nextCycleCountIn.startTime - 3.05) < 1e-9)
-    assert.equal(nextCycleCountIn.frequency.events[0].value, 1800)
+    const nextCycleMeasure = context.oscillators.at(-1)
+    assert.ok(nextCycleMeasure)
+    assert.equal(context.oscillators.length, 3)
+    assert.ok(Math.abs(nextCycleMeasure.startTime - 3.05) < 1e-9)
+    assert.equal(nextCycleMeasure.frequency.events[0].value, 2400)
 
     engine.stop()
   })
