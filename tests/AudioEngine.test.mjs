@@ -335,6 +335,61 @@ describe('AudioEngine sequence playback', () => {
     assert.ok(Math.abs(context.oscillators[1].startTime - 1.05) < 1e-9)
   })
 
+  it('waits for the configured startup delay before a pulse or sequence', async (t) => {
+    const pulseEngine = new AudioEngine()
+    const pulseStartedAt = Date.now()
+    const pulseStart = pulseEngine.start(120, 0.04)
+    const pulseContext = FakeAudioContext.latest
+    assert.equal(pulseContext.oscillators.length, 0)
+    t.after(() => pulseEngine.stop())
+
+    await pulseStart
+    assert.ok(Date.now() - pulseStartedAt >= 30)
+    assert.equal(pulseContext.oscillators.length, 1)
+
+    pulseEngine.stop()
+    const sequenceEngine = new AudioEngine()
+    const timeline = buildPlaybackTimeline(score, {
+      startMeasure: 1,
+      endMeasure: 1,
+      countInPulses: 1,
+      loop: false,
+    })
+    const sequenceStartedAt = Date.now()
+    await sequenceEngine.startSequence(
+      timeline,
+      120,
+      undefined,
+      undefined,
+      undefined,
+      0.04,
+    )
+    t.after(() => sequenceEngine.stop())
+
+    assert.ok(Date.now() - sequenceStartedAt >= 30)
+    assert.equal(FakeAudioContext.latest.oscillators.length, 1)
+  })
+
+  it('does not start playback if stopped during the startup delay', async () => {
+    const engine = new AudioEngine()
+    const pendingStart = engine.start(120, 0.05)
+    const context = FakeAudioContext.latest
+
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    engine.stop()
+    await pendingStart
+
+    assert.equal(context.oscillators.length, 0)
+  })
+
+  it('rejects startup delays outside the supported range', async () => {
+    const engine = new AudioEngine()
+
+    for (const delay of [-0.1, 2.1, Number.NaN]) {
+      await assert.rejects(engine.start(120, delay), RangeError)
+    }
+  })
+
   it('omits later pulse clicks without shifting the beat schedule', async (t) => {
     let randomCalls = 0
     const engine = new AudioEngine(() => {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef } from 'vue'
 import { nextClickSkipProbability } from './audio/clickSkipProbability'
-import { AudioEngine } from './audio/AudioEngine'
+import { AudioEngine, MAX_STARTUP_DELAY_SECONDS } from './audio/AudioEngine'
 import { requestAutomaticAudioSession } from './audio/audioSession'
 import {
   isMobileDevice as detectMobileDevice,
@@ -46,6 +46,8 @@ const mode = ref<PlaybackMode>('pulse')
 const tempoAdjustmentMode = ref<TempoAdjustmentMode>('standard')
 const tempo = ref(132)
 const clickSkipProbability = ref(0)
+const bluetoothModeEnabled = ref(false)
+const bluetoothStartupDelaySeconds = ref(1)
 const score = shallowRef<ParsedScore | null>(defaultSequence.score)
 const selectedSequenceId = ref(defaultSequence.id)
 const defaultStartMeasure = defaultSequence.score.measures[0]?.number ?? 1
@@ -111,6 +113,19 @@ const isTempoLocked = computed(
   () =>
     (isRunning.value || isStarting.value) &&
     repeatMode.value === 'tempo-progression',
+)
+const isBluetoothSettingsLocked = computed(
+  () =>
+    isRunning.value ||
+    isStarting.value ||
+    isAudioContextClosing.value ||
+    isAudioContextTestBusy.value,
+)
+const bluetoothDelayLabel = computed(() =>
+  bluetoothStartupDelaySeconds.value.toLocaleString('fr-FR', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }),
 )
 const lastMeasureNumber = computed(() => {
   const measures = score.value?.measures
@@ -347,6 +362,9 @@ async function start() {
   isStarting.value = true
   errorMessage.value = ''
   audioContextTestMessage.value = ''
+  const startupDelaySeconds = bluetoothModeEnabled.value
+    ? bluetoothStartupDelaySeconds.value
+    : 0
   if (isMobile) {
     void screenWakeLock.request()
   }
@@ -375,7 +393,7 @@ async function start() {
 
     clearPlaybackStatus()
     if (mode.value === 'pulse') {
-      await audioEngine.start(tempo.value)
+      await audioEngine.start(tempo.value, startupDelaySeconds)
     } else if (parsedScore) {
       const progressionSettings =
         repeatMode.value === 'tempo-progression'
@@ -414,6 +432,7 @@ async function start() {
             tempo.value = nextTempo
           }
         },
+        startupDelaySeconds,
       )
     }
 
@@ -709,6 +728,30 @@ onBeforeUnmount(() => {
         >
           Tempo : {{ tempoAdjustmentMode === 'mechanical' ? 'méca.' : 'standard' }}
         </button>
+      </div>
+
+      <div class="bluetooth-startup-control" role="group" aria-label="Mode Bluetooth">
+        <label class="bluetooth-mode-toggle">
+          <input
+            v-model="bluetoothModeEnabled"
+            type="checkbox"
+            :disabled="isBluetoothSettingsLocked"
+          >
+          <span>Mode Bluetooth</span>
+        </label>
+        <label class="bluetooth-delay-control">
+          <span>Délai de démarrage</span>
+          <input
+            v-model.number="bluetoothStartupDelaySeconds"
+            type="range"
+            min="0"
+            :max="MAX_STARTUP_DELAY_SECONDS"
+            step="0.1"
+            :disabled="isBluetoothSettingsLocked"
+            :aria-valuetext="`${bluetoothDelayLabel} seconde${bluetoothStartupDelaySeconds === 1 ? '' : 's'}`"
+          >
+          <output>{{ bluetoothDelayLabel }} s</output>
+        </label>
       </div>
 
       <div class="playback-transport">

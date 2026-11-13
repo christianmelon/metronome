@@ -96,6 +96,7 @@ button:focus-visible {
     "sequence"
     "tempo"
     "options"
+    "bluetooth"
     "transport"
     "status";
   min-width: 0;
@@ -106,6 +107,7 @@ button:focus-visible {
     "mode"
     "tempo"
     "options"
+    "bluetooth"
     "transport"
     "status"
     "sequence";
@@ -136,6 +138,43 @@ button:focus-visible {
   justify-content: center;
   gap: 8px;
   margin-bottom: 24px;
+}
+
+.bluetooth-startup-control {
+  display: flex;
+  grid-area: bluetooth;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+  margin-bottom: 24px;
+}
+
+.bluetooth-mode-toggle,
+.bluetooth-delay-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #d1d5db;
+  font-size: 0.75rem;
+}
+
+.bluetooth-mode-toggle {
+  min-height: 40px;
+}
+
+.bluetooth-mode-toggle input {
+  accent-color: #10b981;
+}
+
+.bluetooth-delay-control input[type="range"] {
+  width: 120px;
+  accent-color: #10b981;
+}
+
+.bluetooth-delay-control output {
+  min-width: 3rem;
+  text-align: left;
 }
 
 .playback-transport {
@@ -431,6 +470,11 @@ h1 {
 
   .playback-option-toggles button {
     white-space: nowrap;
+  }
+
+  .bluetooth-startup-control {
+    flex-direction: column;
+    gap: 4px;
   }
 
   .playback-options {

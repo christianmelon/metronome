@@ -16,6 +16,7 @@ const CLICK_MIN_GAIN = 0.0001
 const CLICK_PEAK_GAIN = 0.3
 const MEASURE_CLICK_PEAK_GAIN = 0.45
 const ALWAYS_PLAY_FIRST_MUSICAL_CLICKS = 5
+export const MAX_STARTUP_DELAY_SECONDS = 2
 
 type ScheduledClick = {
   oscillator: OscillatorNode
@@ -138,7 +139,7 @@ export class AudioEngine {
     this.scheduleClick(context.currentTime + 0.05, 'pulse')
   }
 
-  async start(tempo: number): Promise<void> {
+  async start(tempo: number, startupDelaySeconds = 0): Promise<void> {
     this.setTempo(tempo)
 
     if (this.running) {
@@ -152,12 +153,15 @@ export class AudioEngine {
       return this.startPromise
     }
 
-    await this.beginPlayback((startTime) => ({
-      kind: 'pulse',
-      nextBeatTime: startTime,
-      lastScheduledTime: null,
-      musicalClicksScheduled: 0,
-    }))
+    await this.beginPlayback(
+      (startTime) => ({
+        kind: 'pulse',
+        nextBeatTime: startTime,
+        lastScheduledTime: null,
+        musicalClicksScheduled: 0,
+      }),
+      startupDelaySeconds,
+    )
   }
 
   async startSequence(
@@ -166,27 +170,31 @@ export class AudioEngine {
     onProgress?: (event: PlaybackTimelineEvent) => void,
     onComplete?: () => void,
     onTempoChange?: (tempo: number) => void,
+    startupDelaySeconds = 0,
   ): Promise<void> {
     if (this.running || this.startPromise) {
       throw new Error('Stop the current playback before starting a sequence.')
     }
 
     this.setTempo(tempo)
-    await this.beginPlayback((startTime) => ({
-      kind: 'sequence',
-      timeline,
-      cycleStartTime: startTime,
-      cycleIndex: 0,
-      eventIndex: 0,
-      lastScheduledTime: null,
-      lastScheduledUnitOffset: null,
-      musicalClicksScheduled: 0,
-      progressEvents: [],
-      progressIndex: 0,
-      onProgress,
-      onComplete,
-      onTempoChange,
-    }))
+    await this.beginPlayback(
+      (startTime) => ({
+        kind: 'sequence',
+        timeline,
+        cycleStartTime: startTime,
+        cycleIndex: 0,
+        eventIndex: 0,
+        lastScheduledTime: null,
+        lastScheduledUnitOffset: null,
+        musicalClicksScheduled: 0,
+        progressEvents: [],
+        progressIndex: 0,
+        onProgress,
+        onComplete,
+        onTempoChange,
+      }),
+      startupDelaySeconds,
+    )
   }
 
   stop(): void {
@@ -307,9 +315,14 @@ export class AudioEngine {
 
   private async beginPlayback(
     createPlayback: (startTime: number) => ActivePlayback,
+    startupDelaySeconds: number,
   ): Promise<void> {
     const token = ++this.lifecycleToken
-    const pendingStart = this.initializePlayback(token, createPlayback)
+    const pendingStart = this.initializePlayback(
+      token,
+      createPlayback,
+      startupDelaySeconds,
+    )
     this.startPromise = pendingStart
 
     try {
@@ -324,7 +337,18 @@ export class AudioEngine {
   private async initializePlayback(
     token: number,
     createPlayback: (startTime: number) => ActivePlayback,
+    startupDelaySeconds: number,
   ): Promise<void> {
+    if (
+      !Number.isFinite(startupDelaySeconds) ||
+      startupDelaySeconds < 0 ||
+      startupDelaySeconds > MAX_STARTUP_DELAY_SECONDS
+    ) {
+      throw new RangeError(
+        `Startup delay must be between 0 and ${MAX_STARTUP_DELAY_SECONDS} seconds.`,
+      )
+    }
+
     if (typeof window === 'undefined' || typeof window.AudioContext === 'undefined') {
       throw new Error('Web Audio API is not available in this browser.')
     }
@@ -366,6 +390,21 @@ export class AudioEngine {
 
     if (contextState !== 'running') {
       throw new Error('The browser did not allow audio playback to start.')
+    }
+
+    if (startupDelaySeconds > 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, startupDelaySeconds * 1000)
+      })
+
+      if (token !== this.lifecycleToken || context !== this.audioContext) {
+        return
+      }
+      if (getAudioContextState(context) !== 'running') {
+        throw new Error(
+          'The audio context stopped during the startup delay.',
+        )
+      }
     }
 
     this.running = true
