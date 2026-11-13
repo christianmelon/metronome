@@ -57,6 +57,7 @@ class FakeAudioContext {
   currentTime = 0
   state
   resumeState
+  suspendCalls = 0
   resumeCalls = 0
   destination = {}
   oscillators = []
@@ -90,6 +91,11 @@ class FakeAudioContext {
   async resume() {
     this.resumeCalls += 1
     this.setState(this.resumeState)
+  }
+
+  async suspend() {
+    this.suspendCalls += 1
+    this.setState('suspended')
   }
 
   createOscillator() {
@@ -156,6 +162,7 @@ describe('AudioEngine sequence playback', () => {
     t.after(() => engine.stop())
 
     const context = FakeAudioContext.latest
+    assert.equal(context.suspendCalls, 0)
     assert.equal(context.resumeCalls, 1)
     assert.equal(context.state, 'running')
     assert.deepEqual(contextStates, ['suspended', 'running'])
@@ -170,6 +177,75 @@ describe('AudioEngine sequence playback', () => {
     await assert.rejects(engine.start(120), /browser did not allow audio playback to start/)
     assert.equal(FakeAudioContext.latest.resumeCalls, 1)
     assert.equal(FakeAudioContext.latest.state, 'suspended')
+  })
+
+  it('suspends and resumes a running context on every start', async (t) => {
+    const engine = new AudioEngine()
+
+    await engine.start(120)
+    const context = FakeAudioContext.latest
+    assert.equal(context.suspendCalls, 1)
+    assert.equal(context.resumeCalls, 1)
+
+    engine.stop()
+
+    await engine.start(120)
+    t.after(() => engine.stop())
+
+    assert.equal(FakeAudioContext.latest, context)
+    assert.equal(context.suspendCalls, 2)
+    assert.equal(context.resumeCalls, 2)
+    assert.equal(context.state, 'running')
+    assert.equal(context.oscillators.length, 2)
+    assert.equal(context.oscillators[1].startTime, context.currentTime + 0.05)
+  })
+
+  it('does not resume a context if stopped while its restart suspension is pending', async () => {
+    FakeAudioContext.initialState = 'suspended'
+    const engine = new AudioEngine()
+
+    await engine.start(120)
+    const context = FakeAudioContext.latest
+    engine.stop()
+
+    let finishSuspend
+    context.suspend = () =>
+      new Promise((resolve) => {
+        finishSuspend = () => {
+          context.setState('suspended')
+          resolve()
+        }
+      })
+
+    const restart = engine.start(120)
+    assert.equal(typeof finishSuspend, 'function')
+    engine.stop()
+    finishSuspend()
+    await restart
+
+    assert.equal(context.resumeCalls, 1)
+    assert.equal(context.state, 'suspended')
+    assert.equal(context.oscillators.length, 1)
+  })
+
+  it('reports a restart failure if the context stays suspended after resume', async (t) => {
+    const engine = new AudioEngine()
+
+    await engine.start(120)
+    const context = FakeAudioContext.latest
+    engine.stop()
+
+    context.resumeState = 'suspended'
+    await assert.rejects(
+      engine.start(120),
+      /browser did not allow audio playback to start/,
+    )
+    t.after(() => engine.stop())
+
+    assert.equal(context.suspendCalls, 2)
+    assert.equal(context.resumeCalls, 2)
+    assert.equal(context.state, 'suspended')
+    assert.equal(context.oscillators.length, 1)
   })
 
   it('starts a regular pulse and applies tempo changes to the next beat', async (t) => {
@@ -451,7 +527,7 @@ describe('AudioEngine sequence playback', () => {
     await engine.resume()
 
     assert.equal(context.state, 'running')
-    assert.equal(context.resumeCalls, 1)
+    assert.equal(context.resumeCalls, 2)
     assert.deepEqual(contextStates.slice(-2), ['suspended', 'running'])
     assert.equal(context.oscillators.length, scheduledBeforeResume + 1)
     assert.ok(
@@ -469,13 +545,13 @@ describe('AudioEngine sequence playback', () => {
     globalThis.document.visibilityState = 'hidden'
     context.setState('suspended')
 
-    assert.equal(context.resumeCalls, 0)
+    assert.equal(context.resumeCalls, 1)
     assert.equal(context.state, 'suspended')
 
     globalThis.document.visibilityState = 'visible'
     await engine.resume()
 
-    assert.equal(context.resumeCalls, 1)
+    assert.equal(context.resumeCalls, 2)
     assert.equal(context.state, 'running')
   })
 
@@ -498,12 +574,12 @@ describe('AudioEngine sequence playback', () => {
     assert.equal(context.state, 'suspended')
 
     context.setState('interrupted')
-    assert.equal(context.resumeCalls, 1)
+    assert.equal(context.resumeCalls, 2)
 
     context.resumeState = 'running'
     await engine.resume(true)
 
-    assert.equal(context.resumeCalls, 2)
+    assert.equal(context.resumeCalls, 3)
     assert.equal(context.state, 'running')
   })
 

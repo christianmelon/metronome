@@ -50,6 +50,10 @@ type SequencePlayback = {
 type ActivePlayback = PulsePlayback | SequencePlayback
 type ClickKind = 'pulse' | 'measure' | 'group'
 
+function getAudioContextState(context: AudioContext): AudioContextState {
+  return context.state
+}
+
 export class AudioEngine {
   private audioContext: AudioContext | null = null
   private schedulerTimer: ReturnType<typeof setInterval> | null = null
@@ -307,24 +311,43 @@ export class AudioEngine {
       this.contextStateHandler?.(context.state)
     }
 
-    if (this.audioContext.state === 'closed') {
+    const context = this.audioContext
+    if (context.state === 'closed') {
       throw new Error('The audio context is closed and cannot be restarted.')
     }
 
-    if (this.audioContext.state !== 'running') {
-      await this.audioContext.resume()
+    let contextState = getAudioContextState(context)
+    if (contextState === 'running') {
+      contextState = await context
+        .suspend()
+        .then(() => getAudioContextState(context))
+
+      if (token !== this.lifecycleToken || context !== this.audioContext) {
+        return
+      }
+
+      if (contextState === 'running') {
+        throw new Error('The browser did not allow the audio context to suspend.')
+      }
+      if (contextState === 'closed') {
+        throw new Error('The audio context was closed while being restarted.')
+      }
     }
+
+    contextState = await context
+      .resume()
+      .then(() => getAudioContextState(context))
 
     if (token !== this.lifecycleToken) {
       return
     }
 
-    if (this.audioContext.state !== 'running') {
+    if (contextState !== 'running') {
       throw new Error('The browser did not allow audio playback to start.')
     }
 
     this.running = true
-    this.playback = createPlayback(this.audioContext.currentTime + 0.05)
+    this.playback = createPlayback(context.currentTime + 0.05)
 
     try {
       this.schedule()
