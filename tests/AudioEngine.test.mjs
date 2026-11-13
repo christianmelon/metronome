@@ -501,7 +501,8 @@ describe('AudioEngine sequence playback', () => {
     assert.equal(context.oscillators[0].frequency.events[0].value, 1600)
     const measureEnvelope = context.oscillators[0].connections[0].gain.events
     assert.equal(measureEnvelope[0].value, 0.0001)
-    assert.equal(measureEnvelope[1].value, 0.45)
+    assert.equal(measureEnvelope[1].value, 0.9)
+    assert.ok(measureEnvelope[1].value < 1)
     assert.ok(Math.abs(measureEnvelope[1].time - 0.054) < 1e-9)
     assert.equal(measureEnvelope[2].value, 0.0001)
     assert.ok(Math.abs(measureEnvelope[2].time - 0.115) < 1e-9)
@@ -515,7 +516,8 @@ describe('AudioEngine sequence playback', () => {
     assert.equal(context.oscillators[1].frequency.events[0].value, 1200)
     const groupEnvelope = context.oscillators[1].connections[0].gain.events
     assert.equal(groupEnvelope[0].value, 0.0001)
-    assert.equal(groupEnvelope[1].value, 0.3)
+    assert.equal(groupEnvelope[1].value, 0.6)
+    assert.ok(groupEnvelope[1].value < 1)
     assert.ok(Math.abs(groupEnvelope[1].time - 1.054) < 1e-9)
     assert.equal(groupEnvelope[2].value, 0.0001)
     assert.ok(Math.abs(groupEnvelope[2].time - 1.1) < 1e-9)
